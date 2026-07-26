@@ -3,7 +3,8 @@
 const S = {
   step: 1,
   p: {
-    name:'', matTotal:0, hours:0, rate:0,
+    name:'', desc:'', emoji:'', emojiManual:false,
+    matTotal:0, hours:0, rate:0,
     cr:'facil', fixed:0, units:20, margin:50
   },
   products: []
@@ -16,6 +17,7 @@ const MARGINS = [30, 50, 80, 120]; // Opciones de margen de ganancia (%)
 // Límites de seguridad para entrada del usuario
 const MAX_IMPORT_SIZE = 1024 * 1024;   // 1 MB
 const MAX_NAME_LEN    = 100;
+const MAX_DESC_LEN    = 160;
 const MAX_DATE_LEN    = 30;
 const MAX_INPUT_NUM   = 99_999_999;    // 100 millones — tope razonable
 const VALID_CR_LVLS   = Object.keys(CR_MULT);
@@ -135,9 +137,12 @@ function renderHome() {
   const statsRow = document.getElementById('stats-row');
   const listTitle = document.getElementById('list-title');
 
+  const studioCard = document.getElementById('studio-card');
+
   if (S.products.length === 0) {
     statsRow.style.display = 'none';
     listTitle.style.display = 'none';
+    if (studioCard) studioCard.style.display = 'none';
     list.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">🌱</div>
@@ -148,15 +153,17 @@ function renderHome() {
 
   statsRow.style.display = 'grid';
   listTitle.style.display = 'block';
+  if (studioCard) studioCard.style.display = 'block';
   document.getElementById('stat-count').textContent = S.products.length;
   const avg = S.products.reduce((s,p) => s + p.idealP, 0) / S.products.length;
   document.getElementById('stat-avg').textContent = fmtShort(avg);
 
   list.innerHTML = S.products.map(p => `
     <div class="product-card" onclick="showDetail(${p.id})">
-      <div class="pc-emoji">${p.emoji}</div>
+      ${p.emoji ? `<div class="pc-emoji">${p.emoji}</div>` : ''}
       <div class="pc-info">
         <div class="pc-name">${esc(p.name)}</div>
+        ${p.desc ? `<div class="pc-desc">${esc(p.desc)}</div>` : ''}
         <div class="pc-prices">Ideal: <strong>${fmt(p.idealP)}</strong><span class="iva-inline"> · c/IVA: <strong>${fmt(p.idealP*(1+IVA))}</strong></span></div>
       </div>
       <div class="pc-actions">
@@ -191,6 +198,8 @@ function startCalcWithExample() {
   const name = 'Jabón de lavanda 100g';
   document.getElementById('inp-name').value = name;
   S.p.name = name;
+  document.getElementById('inp-desc').value = 'Hecho a mano con lavanda de Colchagua';
+  onNameInput();
   const matName = document.querySelector('.mat-name');
   const matCost = document.querySelector('.mat-cost');
   if (matName) matName.value = 'Aceite de coco';
@@ -218,8 +227,11 @@ function duplicateProduct(id) {
 function shareWhatsApp(id) {
   const p = S.products.find(x => x.id === id);
   if (!p) return;
+  // El emoji puede estar vacío si la creadora quitó el icono: nada de espacios
+  // sueltos ni líneas en blanco de más.
   const lines = [
-    `Hola! Te paso la cotización de *${p.name}* ${p.emoji}`,
+    `Hola! Te paso la cotización de *${p.name}*${p.emoji ? ' ' + p.emoji : ''}`,
+    ...(p.desc ? [``, p.desc] : []),
     ``,
     `💰 Precio: ${fmt(p.idealP)}`,
     `🧾 Con IVA: ${fmt(p.idealP * (1 + IVA))}`,
@@ -243,11 +255,14 @@ function startCalc() {
 }
 
 function resetState() {
-  S.p = { name:'', matTotal:0, hours:0, rate:0, cr:'facil', fixed:0, units:20, margin:50 };
+  S.p = { name:'', desc:'', emoji:'', emojiManual:false,
+          matTotal:0, hours:0, rate:0, cr:'facil', fixed:0, units:20, margin:50 };
 
   // Reset fields
   const q = id => document.getElementById(id);
   q('inp-name').value = '';
+  q('inp-desc').value = '';
+  paintIconBtn('inp-emoji', '');
   q('inp-hours').value = '';
   q('inp-rate').value = '';
   q('inp-fixed').value = '';
@@ -280,6 +295,9 @@ function goStep(n) {
     const nm = document.getElementById('inp-name').value.trim();
     if (!nm) { toast('¡Ponle nombre a tu creación! 🏷️'); return; }
     S.p.name = nm;
+    S.p.desc = document.getElementById('inp-desc').value.trim().slice(0, MAX_DESC_LEN);
+    // Si nunca tocó el icono, se queda con el sugerido por el nombre.
+    if (!S.p.emojiManual) S.p.emoji = getEmoji(nm);
     // Validate that at least one material has a positive cost
     const costs = Array.from(document.querySelectorAll('.mat-cost'));
     const hasValidMat = costs.some(i => sanitizeNum(i.value) > 0);
@@ -457,7 +475,9 @@ function saveProduct() {
   const prod = {
     id:     Date.now(),
     name:   S.p.name,
-    emoji:  getEmoji(S.p.name),
+    desc:   S.p.desc || '',
+    // Puede ser cadena vacía a propósito: la creadora eligió "sin icono".
+    emoji:  S.p.emojiManual ? S.p.emoji : getEmoji(S.p.name),
     date:   new Date().toLocaleDateString('es-CL'),
     mat:    Math.round(r.mat),
     labor:  Math.round(r.labor),
@@ -524,8 +544,17 @@ function showDetail(idOrEvent, id) {
     <button class="m-btn${p.margin===m?' active':''}" data-m="${m}" onclick="detSetMargin(this,${realId})">${m}%<br><small>${m===30?'Básico':m===50?'Sugerido':m===80?'Autor':'Premium'}</small></button>`
   ).join('');
 
+  // El icono del detalle es editable; se guarda en S._detEmoji hasta que la
+  // creadora pulse "Guardar cambios".
+  S._detEmoji = p.emoji || '';
+
   document.getElementById('det-body').innerHTML = `
-    <div class="detail-emoji-wrap">${p.emoji}</div>
+    <div class="detail-emoji-wrap">
+      <button type="button" class="icon-picker-btn big" onclick="openIconPicker('det-emoji-btn')"
+              id="det-emoji-btn" title="Cambiar el icono">
+        <span class="icon-picker-glyph${p.emoji ? '' : ' empty'}" id="det-emoji">${p.emoji || '＋'}</span>
+      </button>
+    </div>
     <div class="detail-pname" id="det-pname">${esc(p.name)}</div>
     <div class="detail-date">Guardado el ${p.date}</div>
 
@@ -557,6 +586,14 @@ function showDetail(idOrEvent, id) {
       <div class="margin-btns" id="det-margin-btns">${marginBtns}</div>
     </div>
 
+    <!-- DESCRIPCIÓN -->
+    <div class="det-edit-section" style="margin-bottom:16px">
+      <div class="det-edit-title">📝 Descripción</div>
+      <p class="det-edit-hint">Es la que aparece en tus publicaciones.</p>
+      <textarea class="field-input field-textarea" id="det-desc" rows="2" maxlength="${MAX_DESC_LEN}"
+                placeholder="ej: Hecho a mano con lavanda de Colchagua">${esc(p.desc || '')}</textarea>
+    </div>
+
     <!-- EDITAR COMPOSICIÓN -->
     <div class="det-edit-section">
       <div class="det-edit-title">✏️ Editar composición del precio</div>
@@ -584,6 +621,7 @@ function showDetail(idOrEvent, id) {
       <div class="det-secondary-actions">
         <button class="btn-det-secondary btn-whatsapp" onclick="shareWhatsApp(${realId})">${ICONS.whatsapp}<span>WhatsApp</span></button>
         <button class="btn-det-secondary" onclick="duplicateProduct(${realId})">📋 Duplicar</button>
+        <button class="btn-det-secondary btn-studio" onclick="openStudio('historia',${realId})">📸 Publicar</button>
       </div>
       <button class="btn-new-calc" onclick="showView('view-home')" style="width:100%">← Volver al inicio</button>
     </div>`;
@@ -634,7 +672,14 @@ function saveDetProduct(id) {
   const cr     = (mat + labor) * (CR_MULT[p.crLvl] || 0.05);
   const minP   = mat + labor + cr + struct;
   const idealP = minP * (1 + p.margin / 100);
-  S.products[idx] = { ...p, mat:Math.round(mat), labor:Math.round(labor), struct:Math.round(struct), cr:Math.round(cr), minP:Math.round(minP), idealP:Math.round(idealP) };
+  const descEl = document.getElementById('det-desc');
+  S.products[idx] = {
+    ...p,
+    desc: descEl ? descEl.value.trim().slice(0, MAX_DESC_LEN) : (p.desc || ''),
+    emoji: S._detEmoji == null ? (p.emoji || '') : S._detEmoji,
+    mat:Math.round(mat), labor:Math.round(labor), struct:Math.round(struct),
+    cr:Math.round(cr), minP:Math.round(minP), idealP:Math.round(idealP)
+  };
   if (!persistProducts()) return;
   renderHome();
   toast('✨ ¡Cambios guardados!');
@@ -664,15 +709,18 @@ function persistProducts() {
 // BACKUP — EXPORT / IMPORT
 // ===================================================
 function exportData() {
-  if (S.products.length === 0) {
+  // Desde v2 el respaldo también lleva el perfil de marca, así que vale la
+  // pena exportar aunque todavía no haya productos guardados.
+  if (S.products.length === 0 && !studioHasBrand()) {
     toast('⚠️ No hay productos para exportar');
     return;
   }
   const payload = {
     app: 'PrecioCrea',
-    version: 1,
+    version: 2,
     exportDate: new Date().toLocaleDateString('es-CL'),
-    products: S.products
+    products: S.products,
+    brand: studioBrandOrDefault()
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
@@ -681,7 +729,8 @@ function exportData() {
   a.href     = url;
   a.download = `preciocrea-respaldo-${date}.json`;
   a.click();
-  URL.revokeObjectURL(url);
+  // Revocar de inmediato aborta la descarga en algunos WebView de Android.
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
   // Marca que se respaldó para apagar el recordatorio
   try { localStorage.setItem(KEY_BACKUP, String(Date.now())); } catch(e) {}
   renderBackupReminder();
@@ -747,9 +796,14 @@ function sanitizeImportedProduct(raw) {
     ? raw.date.slice(0, MAX_DATE_LEN)
     : new Date().toLocaleDateString('es-CL');
 
+  // Un respaldo v1 no trae `desc` ni `emoji` propio: se rellenan con el valor
+  // por defecto en vez de descartar el producto.
+  const desc = typeof raw.desc === 'string' ? raw.desc.trim().slice(0, MAX_DESC_LEN) : '';
+  // Solo se acepta el emoji si es corto; si no viene, se infiere del nombre.
+  const emoji = typeof raw.emoji === 'string' ? [...raw.emoji].slice(0, 2).join('') : getEmoji(name);
+
   return {
-    id, name,
-    emoji:  getEmoji(name),
+    id, name, desc, emoji,
     date,
     mat:    safeNum(raw.mat),
     labor:  safeNum(raw.labor),
@@ -773,8 +827,21 @@ function importData(input) {
   reader.onload = e => {
     try {
       const data = JSON.parse(e.target.result);
+
+      // El perfil de marca se procesa ANTES que los productos: un respaldo que
+      // solo trae marca (aún sin productos calculados) también debe servir.
+      // Los respaldos v1 no traen `brand` y simplemente se saltan este paso.
+      let brandImported = false;
+      if (data && data.brand) {
+        const b = studioSanitizeBrand(data.brand);
+        if (b && b.name) { studioApplyImportedBrand(b); brandImported = true; }
+      }
+
       const rawList = Array.isArray(data) ? data : (data && Array.isArray(data.products) ? data.products : []);
-      if (!rawList.length) { toast('⚠️ El archivo no tiene productos'); input.value=''; return; }
+      if (!rawList.length) {
+        toast(brandImported ? '🎨 Se importaron los datos de tu marca' : '⚠️ El archivo no tiene productos');
+        input.value=''; return;
+      }
 
       const sanitized = rawList.map(sanitizeImportedProduct).filter(Boolean);
       if (!sanitized.length) {
@@ -846,6 +913,85 @@ function fmtShort(n) {
   if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
   if (n >= 1000)    return '$' + Math.round(n/1000) + 'K';
   return '$' + Math.round(n);
+}
+
+// ===================================================
+// ICONO DEL PRODUCTO
+// ===================================================
+// El icono se sugiere a partir del nombre, pero la creadora manda: puede
+// elegir otro o quedarse sin ninguno. Por eso el producto guarda el emoji tal
+// cual (cadena vacía = sin icono) y nunca se vuelve a inferir sobre lo elegido.
+
+const ICON_CHOICES = [
+  '🎨','🧶','🧼','🕯️','💎','💍','📿','👜','🧵','🪡',
+  '🌿','🌸','🌻','🍃','✨','🎁','🎀','🖼️','🖌️','🪞',
+  '☕','🍯','🍫','🧁','🥧','🫖','🧴','🧺','👗','🧣',
+  '🧢','👛','🪅','🪆','🐚','🪵','🪴','🕊️','🦋','⭐'
+];
+
+let _iconTarget = null;   // 'inp-emoji' (calculadora) o 'det-emoji' (detalle)
+
+function openIconPicker(btnId) {
+  _iconTarget = btnId === 'inp-emoji-btn' ? 'calc' : 'det';
+  const grid = document.getElementById('icon-grid');
+  const actual = _iconTarget === 'calc' ? S.p.emoji : (S._detEmoji || '');
+
+  grid.innerHTML = ICON_CHOICES.map(e => `
+    <button type="button" class="icon-opt${e === actual ? ' sel' : ''}" data-e="${e}">${e}</button>
+  `).join('');
+
+  const overlay = document.getElementById('icon-overlay');
+  const cerrar = () => {
+    overlay.classList.remove('show');
+    grid.removeEventListener('click', onPick);
+    document.getElementById('icon-cancel').removeEventListener('click', cerrar);
+    document.getElementById('icon-none').removeEventListener('click', onNone);
+    overlay.removeEventListener('click', onBg);
+    document.removeEventListener('keydown', onKey);
+  };
+  const aplicar = (emoji) => { setProductIcon(emoji); cerrar(); };
+  const onPick = (ev) => {
+    const b = ev.target.closest('.icon-opt');
+    if (b) aplicar(b.dataset.e);
+  };
+  const onNone = () => aplicar('');
+  const onBg = (ev) => { if (ev.target === overlay) cerrar(); };
+  const onKey = (ev) => { if (ev.key === 'Escape') cerrar(); };
+
+  grid.addEventListener('click', onPick);
+  document.getElementById('icon-cancel').addEventListener('click', cerrar);
+  document.getElementById('icon-none').addEventListener('click', onNone);
+  overlay.addEventListener('click', onBg);
+  document.addEventListener('keydown', onKey);
+  overlay.classList.add('show');
+}
+
+// Pinta un icono en su botón. Sin icono se muestra un signo de suma tenue,
+// para que el botón siga siendo obviamente pulsable.
+function paintIconBtn(spanId, emoji) {
+  const el = document.getElementById(spanId);
+  if (!el) return;
+  el.textContent = emoji || '＋';
+  el.classList.toggle('empty', !emoji);
+}
+
+function setProductIcon(emoji) {
+  if (_iconTarget === 'calc') {
+    S.p.emoji = emoji;
+    S.p.emojiManual = true;         // a partir de aquí el nombre ya no lo pisa
+    paintIconBtn('inp-emoji', emoji);
+  } else {
+    S._detEmoji = emoji;
+    paintIconBtn('det-emoji', emoji);
+  }
+}
+
+// Mientras la creadora no haya tocado el icono, se va sugiriendo según el nombre.
+function onNameInput() {
+  if (S.p.emojiManual) return;
+  const v = document.getElementById('inp-name').value;
+  S.p.emoji = v.trim() ? getEmoji(v) : '';
+  paintIconBtn('inp-emoji', S.p.emoji);
 }
 
 function getEmoji(name) {

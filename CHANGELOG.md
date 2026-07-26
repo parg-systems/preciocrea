@@ -2,7 +2,120 @@
 
 Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
-> **Nota sobre versionado:** La versión **1.0.0** marca el primer release público estable (sin etiqueta "BETA"). Las entradas previas listadas más abajo (1.1.0 – 1.4.0) corresponden a iteraciones internas durante la reorganización y el endurecimiento del proyecto. A partir de 1.0.0 se aplica semver convencional.
+> **Nota sobre versionado:** La versión **1.0.0** (2026-05-15) marca el primer release público estable, sin etiqueta "BETA". Las entradas fechadas antes de esa (1.1.0 – 1.4.0, de marzo a mayo de 2026) son iteraciones internas de la reorganización del proyecto, anteriores al 1.0.0 pese a llevar un número mayor. De ahí que haya dos entradas `[1.1.0]` y dos `[1.0.0]` en este archivo.
+>
+> **El siguiente release salta a 1.5.0** para dejar atrás ese solapamiento: `v1.2.0`, `v1.3.0` y `v1.4.0` ya existen como tags de la etapa interna, así que retomar la numeración en 1.1.x habría vuelto a chocar con ellos en dos releases más. Desde 1.5.0 hay un solo hilo de versiones y se aplica semver convencional.
+
+---
+
+## [1.5.0] — 2026-07-25
+
+Primer release con publicaciones. Recoge además las dos rondas de correcciones
+que se hicieron sobre la marcha (anotadas abajo como 1.1.1 y 1.1.2, números que
+nunca llegaron a publicarse).
+
+### La corrección de legibilidad de la ronda anterior estaba mal enfocada
+
+La ronda anterior arregló el contraste **oscureciendo las letras**. Funcionaba en la medición y rompía la app: el hero del home con texto casi negro sobre el degradado coral no es PrecioCrea. El error de fondo fue tratar un problema de *fondos demasiado claros* como si fuera un problema de *letras demasiado claras*.
+
+Esta versión invierte el criterio: **las letras vuelven a los colores de siempre y lo que se oscurece es el fondo que hay debajo**, conservando el tono. El coral sigue siendo coral, solo que con cuerpo.
+
+- Se revirtieron `--muted` (vuelve a `#9A8FAA`), el logotipo, el hero del home (texto blanco y sus opacidades originales) y `--coral-ink` / `--purple-ink`, que ahora son alias de los colores de marca.
+- Se añadieron `--coral-deep`, `--orange-deep`, `--purple-deep`, `--blue-deep` y `--green-deep`: **solo para fondos que llevan letras blancas**. Los tonos claros siguen intactos para adornos, halos y chips.
+
+### Corregido
+
+- **Botones con la letra ilegible.** Afectaba a "Guardar cambios" del detalle, "Guardar producto", "Compartir" y "Descargar" de las publicaciones, "Salir igual" y el resto de botones de confirmación, los cuatro botones "siguiente" del cálculo (uno por pilar), las burbujas de ayuda "?", "Configurar mi marca", "Seleccionar archivo" y el CTA final de la guía.
+- **La tarjeta "Precio Ideal".** La etiqueta, el valor con IVA y la nota de abajo iban en blanco sobre el degradado claro, con velos de opacidad encima que remataban el problema. Fondo con cuerpo y opacidades subidas.
+- **El enlace "Sitio web" de la guía y del respaldo.** Iba en coral claro mientras el de Instagram, al lado, ya venía en tonos profundos. Ahora hacen juego.
+- **La tarjeta verde "Protege tu trabajo"** del respaldo.
+- **Al publicar "Sin precio", la descripción salía escrita encima del nombre.** El slot del nombre declara `absorb: ['desc','price']` para quedarse con el espacio de lo que falte y no dejar huecos muertos, pero en las plantillas el orden es nombre → descripción → precio: sin precio, el nombre se estiraba hasta el final del precio **saltando por encima de la descripción**, que sí tenía texto, y como va centrado en su caja acababa dibujado justo sobre ella. Ahora la expansión solo toma huecos contiguos y se detiene en el primer elemento con contenido. Sin precio ni descripción el nombre sigue recentrándose en toda la tarjeta, como antes.
+- **El archivo portable salía sin ningún color de marca.** `css/styles.css` se guarda con BOM (U+FEFF). Servida como hoja aparte da igual, porque el navegador lo descarta al decodificar el archivo — por eso `index.html` se veía bien. Pero el build la pega dentro de un `<style>`, y ahí ya no hay decodificación: el carácter queda como texto y el parser de CSS lo lee como el principio de un selector, se traga el comentario de cabecera y convierte la primera regla en `﻿ :root`, que no matchea nada. Esa primera regla es justo la de las variables, así que **el portable perdía la paleta entera** y salía con los colores por defecto del navegador. `read()` quita el BOM de cada archivo fuente, y un guard nuevo aborta el build si aparece cualquier carácter invisible dentro del documento: el fallo anterior se generaba sin avisar y solo se veía al abrir el archivo.
+- **Dos tarjetas del home rompían la columna**, cada una por un motivo distinto. "Aún no has respaldado tus productos" es un `<button>`, y los controles de formulario se encogen al contenido en vez de ocupar el ancho disponible: quedaba más estrecha. "Comparte tus productos" no tenía margen lateral y se salía 22 px por cada lado: quedaba más ancha. Las dos comparten ya los 22 px del resto.
+
+### Cambiado
+
+- **La publicación ya no ofrece "Precio ideal" ni "Con IVA" por separado.** Quedan tres modos: **Precio** (el ideal con IVA ya incluido), **Consultar** y **Sin precio**. Un precio publicado es un precio de venta al público y ahí el IVA va siempre incluido; poder publicar el neto llevaba a cobrar de menos. Las marcas ya guardadas en el modo antiguo pasan solas a "Precio".
+
+---
+
+## [1.1.1] — 2026-07-25 · sin publicar
+
+Correcciones tras la primera prueba en teléfono. Recogidas dentro de la 1.5.0.
+
+### Legibilidad — el problema de fondo era la paleta
+
+Varios textos eran casi invisibles. Al medirlos, el origen resultó ser de siempre, no de la versión nueva: **los colores de marca son demasiado claros para usarse como texto**.
+
+- **`--muted` (`#9A8FAA`) daba 2,9:1** sobre el fondo, muy por debajo del mínimo legible de 4,5:1, y se usaba en textos pequeños de toda la app (etiquetas de estadísticas, precios de la lista, pie de página, subtítulos). Ahora es `#736787` → 5,2:1. El tono claro anterior queda como `--muted-soft`, solo para adornos.
+- **El hero del home** tenía texto blanco sobre un degradado luminoso: 2,1:1. En vez de apagar el coral, que es el color de la marca, se invirtió el texto a tinta oscura sobre el mismo degradado → 15,4:1. Se quitaron además las opacidades de `.hero-greeting` y `.hero-desc`, que restaban el poco contraste que quedaba.
+- **`--coral` y `--purple` como color de letras** daban 2,8:1 y 2,5:1 sobre blanco. Se añadieron `--coral-ink` y `--purple-ink` (5,1:1 y 6,7:1) para cuando el color de marca es el de un texto. Afectaba al logotipo "preciocrea", al botón "Calcular precio" y a los precios de la lista.
+- Misma corrección en el motor de publicaciones: el `muted` de la paleta generada.
+
+### Cambiado
+
+- **La tarjeta "Comparte tus productos" no tenía marco.** Sobre el fondo crema, una tarjeta blanca con borde lila pálido no se distinguía. Ahora lleva borde marcado (`--border-strong`), sombra con cuerpo y un filete de color arriba.
+
+### Añadido
+
+- **Descripción del producto.** Campo opcional en el paso 1 y editable en el detalle. Es el texto que aparece en las publicaciones y se suma al mensaje de WhatsApp. Todas las plantillas se reorganizaron para darle sitio.
+- **Icono del producto editable.** Se sigue sugiriendo según el nombre, pero ahora se puede elegir entre 40 iconos o **quitarlo**. Sin icono, la publicación no deja un hueco: el círculo que lo contenía desaparece y el resto se recoloca.
+- **Logo de la marca.** Se sube desde *Tu marca*, se guarda con el perfil y sustituye al nombre escrito en las publicaciones. Se reduce a 360 px y se guarda en PNG para conservar la transparencia; ocupa unos 40-90 KB frente a los 300-600 KB de una foto de producto, que por eso siguen sin guardarse.
+- **Color propio por publicación.** El acento arranca en el de la marca pero se puede cambiar solo para esa pieza, sin tocar el perfil, y volver al de la marca con un toque.
+
+### Corregido
+
+- **Subir el logo borraba el nombre y el @ que se estaban escribiendo**, porque el formulario se repintaba desde un estado que aún no los tenía. Ahora se vuelcan al estado antes de repintar.
+- El saneo del logo importado rechaza URLs remotas, `javascript:`, `data:text/html` y SVG (que puede llevar script), además de archivos desmedidos: un respaldo puede llegar por WhatsApp desde cualquier parte.
+- El emoji vacío ya no deja espacios sueltos en el mensaje de WhatsApp ni un hueco en la lista del home.
+
+---
+
+## [1.1.0] — 2026-07-25 · sin publicar · Edición de aniversario 🎉
+
+> Esta es la 1.1.0 **posterior** a la 1.0.0, siguiendo semver. No confundir con la 1.1.0 interna de la reorganización, listada más abajo.
+
+### Cinco años de viviLoaiza.cl
+
+- **Cinta superior** con degradado coral → morado → azul y un destello que la cruza cada pocos segundos. Va dentro de `.app` pero fuera de las `.view`, así que acompaña a todas las pantallas sin duplicar marcado. Enlaza a viviloaiza.cl.
+- **Tarjeta de aniversario** en el home, en el lugar de la tarjeta de viviLoaiza: distintivo "5 años", mensaje de agradecimiento y los enlaces al sitio y a Instagram.
+- La cinta respeta `prefers-reduced-motion`: si el sistema pide menos animación, el destello no se ejecuta.
+- La marca conserva su grafía (`viviLoaiza.cl`); solo el "5 AÑOS DE" va en mayúsculas.
+- Es contenido conmemorativo y permanente para esta versión. Para retirarlo basta con quitar el bloque `ANIVERSARIO` de `css/styles.css` y su marcado en `index.html`.
+- **Las publicaciones no llevan sello de aniversario**: siguen siendo 100% de cada creadora.
+
+### Publicaciones — crea imágenes para Instagram desde tus productos
+
+Hasta ahora la app terminaba en un número: calculabas el precio y quedabas sin nada que publicar. Ahora, desde cualquier producto guardado, se genera la imagen lista para subir.
+
+**La publicación es de la creadora, no de PrecioCrea.** Ella configura su nombre, su Instagram y su color, y todo el material gráfico se dibuja por código (degradados, formas y tipografía sobre Canvas 2D). No se incorporó ni un archivo de imagen nuevo al proyecto.
+
+#### Añadido
+
+- **Vista "Tu marca"** (`#view-brand`): nombre, @ de Instagram, color de acento (8 sugeridos + selector libre), modo de precio por defecto y si mostrar el pie "hecho con PrecioCrea". Se configura una sola vez. Accesible desde Respaldo o desde el primer intento de publicar.
+- **Historias 1080×1920** con cuatro estilos: *Tarjeta*, *Bloque*, *Círculo* y *Pantalla completa*. Se eligen con miniaturas que dibujan la plantilla real con los datos reales.
+- **Carrusel catálogo 1080×1350 (4:5)**: portada editable + una lámina por producto. Dos estilos emparejados (*Suave* y *Nítido*); portada y láminas cambian juntas. El orden en que se tocan los productos es el orden de las láminas. Máximo 9 productos.
+- **Foto del producto**: se elige del teléfono, se corrige la orientación EXIF (las fotos de iPhone ya no salen giradas), se reduce a 1800 px y se encuadra arrastrando sobre la vista previa o con el control de zoom. Nunca puede quedar un borde vacío.
+- **Precio opcional en la publicación**: precio ideal, con IVA, "Consulta por precio" o sin precio. Al ocultarlo, el nombre se recentra y los adornos asociados desaparecen — no queda un hueco.
+- **Compartir con la hoja nativa** (`navigator.share` con archivos) además de descargar. En iPhone es la acción principal, porque `<a download>` deja la imagen en Archivos y no en Fotos.
+- **Aviso al salir sin descargar**: la foto y el encuadre no se guardan en ningún lado, así que salir sin exportar pide confirmación.
+- El perfil de marca **viaja dentro del respaldo** (`.json` versión 2). Al importar un respaldo con otra marca, se pregunta antes de reemplazar la propia.
+
+#### Detalles de diseño
+
+- **Los colores se derivan del acento de la creadora**, no se eligen a mano: los fondos y el color de texto se calculan midiendo contraste WCAG, de modo que un acento amarillo, negro o gris medio siga produciendo una publicación legible.
+- **El texto se ajusta a su caja**: si el nombre no cabe, primero se reduce la tipografía y solo se recorta como último recurso. Un nombre de 60 caracteres sin espacios se parte por letras en vez de romper el diseño.
+- Sin dependencias nuevas: ni librerías, ni imágenes, ni cambios en la política de seguridad (CSP).
+
+#### Corregido
+
+- **`scripts/build-portable.js` generaba un archivo roto.** El contenido de `app.js` se pasaba como cadena de reemplazo a `String.replace`, que interpreta `$'` como patrón especial; la secuencia aparece literalmente en `fmt()` (`return '$' + …`) y se expandía al resto del documento. En el `preciocrea-portable.html` publicado, `fmt()` quedaba con un error de sintaxis que impedía ejecutar todo el script. Ahora el reemplazo se pasa como función y el script **falla ruidosamente** si alguna sustitución no encuentra su patrón, en vez de generar un archivo silenciosamente roto.
+- `exportData()` revocaba el object URL inmediatamente después de `click()`, lo que aborta la descarga en algunos WebView de Android. Ahora se revoca con margen.
+
+#### Cambiado
+
+- El botón de acciones del detalle del producto pasa a tres columnas: WhatsApp · Duplicar · **Publicar**.
+- `sw.js`: `VERSION` a `1.1.0` y `js/studio.js` añadido a los assets cacheados.
 
 ---
 

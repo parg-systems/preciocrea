@@ -20,3 +20,6 @@ preciocrea-respaldo-*.json
 
 # Build portable (regenerar con: node scripts/build-portable.js)
 preciocrea-portable.html
+
+# Copias versionadas del portable para repartir
+dist/

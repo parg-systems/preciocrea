@@ -13,6 +13,8 @@ Guía paso a paso para calcular el precio de cualquier producto creativo conside
 
 Entrega un **precio mínimo** (punto de equilibrio) y un **precio ideal** con márgenes de 30%, 50%, 80% o 120%. Muestra ambos precios con y sin IVA (19%).
 
+Y con el precio ya calculado, genera la **publicación para Instagram** del producto.
+
 ## Características
 
 - Aplicación web de una sola página (SPA), sin dependencias externas
@@ -20,9 +22,28 @@ Entrega un **precio mínimo** (punto de equilibrio) y un **precio ideal** con m�
 - Funciona offline (Service Worker con caché)
 - Guarda productos en `localStorage` del dispositivo
 - Exporta e importa datos en JSON como respaldo
+- **Publicaciones**: historias (1080×1920) y carruseles de catálogo (1080×1350) con la marca de cada creadora
 - Guía de ayuda integrada con ejemplos y fundamentos teóricos
 - Interfaz mobile-first, diseño responsivo
 - Idioma: español (Chile)
+
+## Publicaciones
+
+Desde un producto guardado (botón **📸 Publicar**) o desde la tarjeta del home se generan imágenes listas para Instagram.
+
+**Marca blanca.** La publicación es de la creadora: ella configura su nombre, su @, su logo y su color en la vista *Tu marca*, y a partir de ese único color se derivan todos los fondos y colores de texto de la pieza. No hay plantillas-imagen: cada publicación se **dibuja por código** sobre Canvas 2D, así que el proyecto no incorpora ningún archivo gráfico y cualquier color produce una pieza legible.
+
+- **Historia** — 1080×1920, cuatro estilos.
+- **Catálogo** — carrusel 1080×1350 (4:5): portada + una lámina por producto, hasta 9.
+- La foto se toma del teléfono, se corrige su orientación EXIF y se encuadra arrastrando sobre la vista previa.
+- El nombre, la **descripción** y el icono del producto viajan a la publicación, y se pueden retocar ahí sin alterar el producto guardado.
+- El precio puede mostrarse con IVA incluido, como "Consulta por precio" u ocultarse.
+- El **color** arranca en el de la marca pero se puede cambiar solo para esa publicación.
+- Si hay **logo**, sustituye al nombre escrito de la marca.
+
+> **Las fotos de producto no se guardan.** Viven solo en memoria mientras se edita la publicación: una foto en `localStorage` consumiría la cuota que necesitan los productos guardados. El **logo sí se guarda** (reducido a 360 px, unos 40-90 KB) porque es un dato de marca que se configura una vez. Todo el perfil de marca viaja dentro del respaldo `.json`.
+
+Las plantillas viven en `STUDIO_TEMPLATES` (`js/studio.js`) como datos puros, con coordenadas normalizadas a `[0,1]`. Agregar un estilo nuevo es añadir un objeto a ese array; no hay que tocar el motor de render.
 
 ## Cómo usar
 
@@ -38,7 +59,9 @@ Para casos en que no se puede usar el link (enviar por WhatsApp/Drive/email), se
 node scripts/build-portable.js
 ```
 
-El archivo `preciocrea-portable.html` (~120 KB) queda en la raíz. Se abre con doble click en cualquier navegador moderno. **Limitación:** no funciona como PWA instalable (los Service Workers requieren HTTPS), pero la app funciona normal y `localStorage` persiste los productos.
+El archivo `preciocrea-portable.html` (~240 KB) queda en la raíz. Se abre con doble click en cualquier navegador moderno. **Limitación:** no funciona como PWA instalable (los Service Workers requieren HTTPS), pero la app funciona normal —publicaciones incluidas— y `localStorage` persiste los productos.
+
+El script aborta con error si alguna sustitución no encuentra su patrón en `index.html`: un portable con una referencia externa sin inlinear se ve bien al generarlo y falla en el teléfono de la clienta, así que conviene enterarse al construirlo.
 
 ## Estructura del proyecto
 
@@ -50,7 +73,8 @@ preciocrea/
 ├── css/
 │   └── styles.css                ← Todos los estilos
 ├── js/
-│   └── app.js                    ← Toda la lógica
+│   ├── app.js                    ← Calculadora, productos, respaldo
+│   └── studio.js                 ← Publicaciones: marca, plantillas y motor de render
 ├── assets/
 │   ├── icons/
 │   │   └── icon-192.png          ← Ícono PWA
@@ -80,6 +104,21 @@ preciocrea/
 | Offline | Service Worker + Cache API |
 | Instalación | Web App Manifest (PWA) |
 | Tipografías | Google Fonts (Fraunces + Nunito) |
+| Publicaciones | Canvas 2D nativo (sin librerías) |
+
+## Color y legibilidad
+
+Los colores de marca (`--coral`, `--purple`) son **colores de fondo**: sobre blanco dan menos de 3:1 y no se pueden usar como texto. Para eso están `--coral-ink` y `--purple-ink`, y `--muted` para el texto secundario.
+
+| Token | Uso |
+|---|---|
+| `--coral`, `--purple` | Fondos, botones, adornos |
+| `--coral-ink`, `--purple-ink` | Los mismos tonos **como letras** sobre fondo claro |
+| `--muted` | Texto secundario (5,2:1) |
+| `--muted-soft` | El tono claro anterior, solo adornos sin texto |
+| `--border-strong` | Bordes de tarjetas que deben destacar sobre el fondo crema |
+
+En las publicaciones ocurre lo mismo pero calculado en caliente: `studioPalette()` deriva del acento de la creadora los tokens `accentInk` (acento legible como texto) y `onAccent`/`onAccentDark` (qué color de letra va sobre cada fondo), midiendo contraste WCAG en vez de fijarlo a ojo.
 
 ## Constantes configurables
 
