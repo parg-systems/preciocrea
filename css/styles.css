@@ -1,4 +1,37 @@
 ﻿/* ============================================================
+   TIPOGRAFÍAS
+   ============================================================
+   Fraunces y Nunito viven en el proyecto, no en Google Fonts. Tres razones:
+   la app tiene que verse igual sin conexión (el service worker no cachea otros
+   orígenes, así que con Google la tipografía de marca desaparecía justo
+   offline), cada apertura dejaba de filtrar la IP de la creadora a un tercero,
+   y la CSP pudo cerrarse a 'self'.
+   Son las variantes variables: un solo archivo cubre todos los pesos, 96 KB
+   en total frente a los 285 KB que pesarían los pesos por separado.
+   ============================================================ */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../assets/fonts/fraunces-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../assets/fonts/fraunces-var-italic.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../assets/fonts/nunito-var.woff2') format('woff2');
+}
+
+/* ============================================================
    VARIABLES & RESET
    ============================================================ */
 :root {

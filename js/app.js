@@ -44,14 +44,49 @@ const ICONS = {
 // INIT
 // ===================================================
 (function init() {
-  try {
-    const saved = localStorage.getItem(KEY_PRODUCTS);
-    if (saved) S.products = JSON.parse(saved);
-  } catch(e) {}
+  S.products = loadProducts();
   renderHome();
   renderOnboarding();
   setupInstallPrompt();
 })();
+
+// Lo que sale de localStorage se trata con la misma desconfianza que un archivo
+// importado: puede venir de una versión antigua, de una escritura a medias
+// cuando se agotó la cuota, o estar corrupto sin más. Si entrara en crudo, un
+// dato con forma inesperada reventaría renderHome() y dejaría la app en blanco
+// — y desde el teléfono no hay forma de limpiar el almacenamiento para volver.
+function loadProducts() {
+  let raw = null;
+  try {
+    raw = JSON.parse(localStorage.getItem(KEY_PRODUCTS) || 'null');
+  } catch(e) {
+    return [];
+  }
+  if (!Array.isArray(raw)) return [];
+
+  const out  = [];
+  const usados = new Set();
+  for (const item of raw) {
+    const p = sanitizeImportedProduct(item);
+    if (!p) continue;
+    // Un respaldo viejo puede traer ids repetidos: se reparan al entrar.
+    if (usados.has(p.id)) p.id = nextProductId(usados);
+    usados.add(p.id);
+    out.push(p);
+  }
+  return out;
+}
+
+// Los ids nacen de Date.now(), pero eso solo no basta: duplicar un producto y
+// guardar otro poco después podían caer en el mismo número, y con ids repetidos
+// find() y filter() editan o borran el producto equivocado. Aquí se garantiza
+// que el id nuevo no choque con ninguno vivo.
+function nextProductId(usados) {
+  const tomados = usados || new Set(S.products.map(p => Number(p.id)));
+  let id = Date.now();
+  while (tomados.has(id)) id++;
+  return id;
+}
 
 // ===================================================
 // INSTALACIÓN COMO APP (PWA)
@@ -160,7 +195,7 @@ function renderHome() {
 
   list.innerHTML = S.products.map(p => `
     <div class="product-card" onclick="showDetail(${p.id})">
-      ${p.emoji ? `<div class="pc-emoji">${p.emoji}</div>` : ''}
+      ${p.emoji ? `<div class="pc-emoji">${esc(p.emoji)}</div>` : ''}
       <div class="pc-info">
         <div class="pc-name">${esc(p.name)}</div>
         ${p.desc ? `<div class="pc-desc">${esc(p.desc)}</div>` : ''}
@@ -214,7 +249,8 @@ function duplicateProduct(id) {
   if (!p) return;
   const copy = {
     ...p,
-    id: Date.now() + Math.floor(Math.random() * 1000),
+    id: nextProductId(),
+    addedAt: Date.now(),
     name: `${p.name} (copia)`.slice(0, MAX_NAME_LEN),
     date: new Date().toLocaleDateString('es-CL')
   };
@@ -473,7 +509,8 @@ function setMargin(btn) {
 function saveProduct() {
   const r = calc();
   const prod = {
-    id:     Date.now(),
+    id:     nextProductId(),
+    addedAt: Date.now(),
     name:   S.p.name,
     desc:   S.p.desc || '',
     // Puede ser cadena vacía a propósito: la creadora eligió "sin icono".
@@ -544,15 +581,20 @@ function showDetail(idOrEvent, id) {
     <button class="m-btn${p.margin===m?' active':''}" data-m="${m}" onclick="detSetMargin(this,${realId})">${m}%<br><small>${m===30?'Básico':m===50?'Sugerido':m===80?'Autor':'Premium'}</small></button>`
   ).join('');
 
-  // El icono del detalle es editable; se guarda en S._detEmoji hasta que la
-  // creadora pulse "Guardar cambios".
+  // Todo lo editable del detalle vive en un borrador hasta que la creadora
+  // pulse "Guardar cambios". Si se tocara el producto directamente, salir sin
+  // guardar dejaría el cambio vivo en memoria con los precios viejos, y el
+  // siguiente persistProducts() (guardar otro producto, borrar, importar) lo
+  // escribiría a disco: un producto que dice "margen 120%" con el precio
+  // calculado al 50%.
   S._detEmoji = p.emoji || '';
+  S._detDraft = { crLvl: p.crLvl, margin: p.margin };
 
   document.getElementById('det-body').innerHTML = `
     <div class="detail-emoji-wrap">
       <button type="button" class="icon-picker-btn big" onclick="openIconPicker('det-emoji-btn')"
               id="det-emoji-btn" title="Cambiar el icono">
-        <span class="icon-picker-glyph${p.emoji ? '' : ' empty'}" id="det-emoji">${p.emoji || '＋'}</span>
+        <span class="icon-picker-glyph${p.emoji ? '' : ' empty'}" id="det-emoji">${p.emoji ? esc(p.emoji) : '＋'}</span>
       </button>
     </div>
     <div class="detail-pname" id="det-pname">${esc(p.name)}</div>
@@ -632,12 +674,13 @@ function showDetail(idOrEvent, id) {
 function detRecalc(id) {
   const p = S.products.find(p => p.id === id);
   if (!p) return;
+  const d      = S._detDraft || { crLvl: p.crLvl, margin: p.margin };
   const mat    = sanitizeNum(document.getElementById('det-mat').value);
   const labor  = sanitizeNum(document.getElementById('det-labor').value);
   const struct = sanitizeNum(document.getElementById('det-struct').value);
-  const cr     = (mat + labor) * (CR_MULT[p.crLvl] || 0.05);
+  const cr     = (mat + labor) * (CR_MULT[d.crLvl] || 0.05);
   const minP   = mat + labor + cr + struct;
-  const idealP = minP * (1 + p.margin / 100);
+  const idealP = minP * (1 + d.margin / 100);
   document.getElementById('det-min').textContent       = fmt(minP);
   document.getElementById('det-min-iva').textContent   = fmt(minP * (1 + IVA));
   document.getElementById('det-ideal').textContent     = fmt(idealP);
@@ -645,19 +688,19 @@ function detRecalc(id) {
 }
 
 function detSelCr(el, id) {
+  if (!S._detDraft) return;
   document.querySelectorAll('.det-cr-opt').forEach(o => o.classList.remove('sel'));
   el.classList.add('sel');
-  const p = S.products.find(p => p.id === id);
-  if (p) { p.crLvl = el.dataset.val; detRecalc(id); }
+  S._detDraft.crLvl = el.dataset.val;
+  detRecalc(id);
 }
 
 function detSetMargin(btn, id) {
+  if (!S._detDraft) return;
   document.querySelectorAll('#det-margin-btns .m-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  const p = S.products.find(p => p.id === id);
-  if (!p) return;
-  p.margin = parseInt(btn.dataset.m);
-  document.getElementById('det-margin-lbl').textContent = p.margin;
+  S._detDraft.margin = parseInt(btn.dataset.m);
+  document.getElementById('det-margin-lbl').textContent = S._detDraft.margin;
   detRecalc(id);
 }
 
@@ -669,17 +712,23 @@ function saveDetProduct(id) {
   const labor  = sanitizeNum(document.getElementById('det-labor').value);
   const struct = sanitizeNum(document.getElementById('det-struct').value);
   if (mat + labor + struct <= 0) { toast('Al menos un valor debe ser mayor a 0 🔢'); return; }
-  const cr     = (mat + labor) * (CR_MULT[p.crLvl] || 0.05);
+  // Recién aquí el borrador se vuelve definitivo.
+  const d      = S._detDraft || { crLvl: p.crLvl, margin: p.margin };
+  const crLvl  = VALID_CR_LVLS.includes(d.crLvl) ? d.crLvl : p.crLvl;
+  const margin = MARGINS.includes(d.margin) ? d.margin : p.margin;
+  const cr     = (mat + labor) * (CR_MULT[crLvl] || 0.05);
   const minP   = mat + labor + cr + struct;
-  const idealP = minP * (1 + p.margin / 100);
+  const idealP = minP * (1 + margin / 100);
   const descEl = document.getElementById('det-desc');
   S.products[idx] = {
     ...p,
     desc: descEl ? descEl.value.trim().slice(0, MAX_DESC_LEN) : (p.desc || ''),
     emoji: S._detEmoji == null ? (p.emoji || '') : S._detEmoji,
+    crLvl, margin,
     mat:Math.round(mat), labor:Math.round(labor), struct:Math.round(struct),
     cr:Math.round(cr), minP:Math.round(minP), idealP:Math.round(idealP)
   };
+  S._detDraft = null;
   if (!persistProducts()) return;
   renderHome();
   toast('✨ ¡Cambios guardados!');
@@ -743,10 +792,17 @@ function exportData() {
 // Devuelve {newCount, days, hasBackup} o null si no hay nada que recordar.
 function getBackupState() {
   if (S.products.length === 0) return null;
-  const lastRaw = parseInt(localStorage.getItem(KEY_BACKUP) || '0', 10);
+  // Un navegador con el almacenamiento bloqueado lanza al leer, y esto corre
+  // dentro de renderHome(): sin el try/catch el home se quedaría a medio pintar.
+  let lastRaw = 0;
+  try { lastRaw = parseInt(localStorage.getItem(KEY_BACKUP) || '0', 10) || 0; } catch(e) {}
   const hasBackup = lastRaw > 0;
-  // Cuántos productos se crearon después del último respaldo
-  const newCount = S.products.filter(p => Number(p.id) > lastRaw).length;
+  // Cuántos productos entraron a este dispositivo después del último respaldo.
+  // Se mira `addedAt` y no el id: un producto importado conserva el id (y por
+  // tanto la fecha) del dispositivo de origen, así que por id nunca contaría
+  // como pendiente — justo cuando la creadora acaba de mudarse de teléfono y
+  // más necesita respaldar.
+  const newCount = S.products.filter(p => (Number(p.addedAt) || Number(p.id)) > lastRaw).length;
   if (newCount === 0) return null;
   const days = hasBackup ? Math.floor((Date.now() - lastRaw) / 86400000) : null;
   return { newCount, days, hasBackup };
@@ -790,7 +846,13 @@ function sanitizeImportedProduct(raw) {
   const crLvl = VALID_CR_LVLS.includes(raw.crLvl) ? raw.crLvl : 'facil';
 
   const rawId = Number(raw.id);
-  const id = Number.isFinite(rawId) && rawId > 0 ? rawId : (Date.now() + Math.floor(Math.random() * 1000));
+  const id = Number.isFinite(rawId) && rawId > 0 ? rawId : nextProductId();
+
+  // Cuándo entró el producto a ESTE dispositivo (lo usa el recordatorio de
+  // respaldo). Un producto guardado antes de que existiera el campo cae al id,
+  // que es su fecha de creación: mismo comportamiento que tenía.
+  const rawAdded = Number(raw.addedAt);
+  const addedAt = Number.isFinite(rawAdded) && rawAdded > 0 ? rawAdded : id;
 
   const date = typeof raw.date === 'string'
     ? raw.date.slice(0, MAX_DATE_LEN)
@@ -803,7 +865,7 @@ function sanitizeImportedProduct(raw) {
   const emoji = typeof raw.emoji === 'string' ? [...raw.emoji].slice(0, 2).join('') : getEmoji(name);
 
   return {
-    id, name, desc, emoji,
+    id, addedAt, name, desc, emoji,
     date,
     mat:    safeNum(raw.mat),
     labor:  safeNum(raw.labor),
@@ -849,8 +911,14 @@ function importData(input) {
         input.value = ''; return;
       }
 
+      // La deduplicación va por id original: así reimportar el mismo respaldo
+      // no duplica nada. Pero `addedAt` sí se refresca, porque respecto de este
+      // teléfono estos productos son nuevos y aún no están respaldados aquí.
       const existingIds = new Set(S.products.map(p => p.id));
-      const newOnes = sanitized.filter(p => !existingIds.has(p.id));
+      const ahora = Date.now();
+      const newOnes = sanitized
+        .filter(p => !existingIds.has(p.id))
+        .map(p => ({ ...p, addedAt: ahora }));
       if (!newOnes.length) {
         toast('ℹ️ Estos productos ya están guardados');
         input.value = ''; return;
@@ -1055,9 +1123,12 @@ function confirmDialog({ icon = '⚠️', title = '¿Confirmar?', message = '', 
     const onOk = () => cleanup(true);
     const onNo = () => cleanup(false);
     const onBgClick = (e) => { if (e.target === overlay) cleanup(false); };
+    // Escape cancela. Enter NO confirma a propósito: el foco arranca en
+    // "Cancelar", así que quien pulsara Enter creyendo que activaba el botón
+    // enfocado terminaba borrando el producto. El botón que tenga el foco ya
+    // responde a Enter por su cuenta, y hace lo correcto.
     const onKey = (e) => {
       if (e.key === 'Escape') cleanup(false);
-      if (e.key === 'Enter')  cleanup(true);
     };
 
     btnOk.addEventListener('click', onOk);

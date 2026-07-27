@@ -35,6 +35,16 @@ Cada release debe bumpear `VERSION` en `sw.js` para invalidar el caché viejo.
 
 - [ ] En **Safari modo privado** (iOS): crear un producto. Al fallar `localStorage.setItem`, aparece un toast claro indicando que no se pudo guardar.
 - [ ] Llenar localStorage manualmente hasta el tope (DevTools → Application → localStorage → llenar con strings grandes) e intentar guardar: el toast indica "Sin espacio para guardar".
+- [ ] **Almacenamiento corrupto.** En la consola, `localStorage.setItem('pc_v1','{"a":1}')` y recargar. La app abre vacía y usable, **no en blanco**. Repetir con `'[null,42,"texto"]'` y con `'{no es json'`.
+- [ ] **Almacenamiento bloqueado.** Deshabilitar todas las cookies/datos de sitio para el dominio y abrir: el home se dibuja completo (con el aviso de que no se puede guardar), no a medias.
+- [ ] Un respaldo con **dos productos del mismo `id`**: al cargar quedan como productos independientes; editar uno no cambia el otro.
+
+## Integridad de los precios
+
+- [ ] **Cambios descartados no se guardan.** Abrir un producto, cambiar margen y carga creativa, volver al inicio **sin pulsar "Guardar cambios"**, guardar otro producto cualquiera y recargar: el primero conserva su margen y su precio originales.
+- [ ] **Cambios confirmados sí se guardan.** Lo mismo pero pulsando "Guardar cambios": el margen nuevo queda, y el precio ideal **corresponde a ese margen** (no al anterior).
+- [ ] **Duplicar y guardar seguido.** Duplicar un producto e inmediatamente guardar otro nuevo: los dos aparecen en el home y se editan y eliminan por separado, sin que uno afecte al otro.
+- [ ] Importar un respaldo hecho en otro teléfono: el recordatorio avisa de que esos productos **aún no están respaldados aquí**.
 
 ## Validaciones de entrada
 
@@ -139,13 +149,25 @@ Cada release debe bumpear `VERSION` en `sw.js` para invalidar el caché viejo.
 - [ ] Instalar en iOS Safari ("Compartir → Agregar a inicio"): se abre en modo standalone.
 - [ ] Modo avión: la app sigue cargando desde el caché.
 - [ ] Publicar una nueva versión (bump `VERSION` en `sw.js`), abrir la app instalada: aparece el banner "Hay una nueva versión disponible — Recargar". Hacer click recarga y la app pasa a la versión nueva sin loop infinito.
+- [ ] **El icono instalado se ve nítido y sin recortes** en el cajón de apps de Android (el sistema aplica su máscara sobre el icono *maskable*), y la pantalla de bienvenida al abrir no sale borrosa.
+- [ ] **Modo avión con la app instalada:** la tipografía de marca se ve **igual que en línea** (Fraunces y Nunito, no la fuente del sistema).
+- [ ] **Sin caché y sin red:** en DevTools → Application → Storage → *Clear site data*, activar Offline y recargar: aparece la pantalla "Sin conexión", no el error del navegador.
+- [ ] **El servidor no congela la app.** Comprobar en Network que `sw.js`, `index.html` y `manifest.webmanifest` se sirven con `Cache-Control: no-cache`. Sin eso, una corrección publicada no llega a quien ya tenía la app abierta.
 
 ## Seguridad
 
 - [ ] Crear un producto con nombre `<script>alert(1)</script>`: se muestra como texto, no ejecuta JS.
 - [ ] Importar un JSON donde `name` sea `<img src=x onerror=alert(1)>`: tampoco ejecuta.
+- [ ] Importar un JSON donde `emoji` sea `<s`: se muestra como texto en la lista y en el detalle.
 - [ ] DevTools → Console: el CSP no reporta violaciones críticas durante uso normal.
-- [ ] No hay tráfico de red salvo Google Fonts (verificable en Network tab).
+- [ ] **Cero tráfico a terceros.** En la pestaña Network, tras un uso completo (calcular, guardar, publicar), **ninguna petición sale del propio dominio**. Ya no hay Google Fonts.
+- [ ] En la pestaña Network filtrando por `Font`: las tres tipografías se sirven desde `/assets/fonts/`.
+
+## Accesibilidad
+
+- [ ] **Pellizcar para ampliar funciona** en el teléfono, en todas las pantallas.
+- [ ] Con el tamaño de letra del sistema al máximo (Android: Ajustes → Pantalla → Tamaño de fuente), las pantallas siguen usables y los botones no se solapan.
+- [ ] En el aviso de eliminar, pulsar **Enter no borra nada**. Escape cancela. Tabular hasta "Eliminar" y pulsar Enter sí elimina.
 
 ## Layout
 

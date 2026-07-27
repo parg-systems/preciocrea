@@ -77,7 +77,14 @@ preciocrea/
 │   └── studio.js                 ← Publicaciones: marca, plantillas y motor de render
 ├── assets/
 │   ├── icons/
-│   │   └── icon-192.png          ← Ícono PWA
+│   │   ├── icon-192.png          ← Ícono PWA
+│   │   ├── icon-512.png          ← Ícono grande (splash de instalación)
+│   │   ├── icon-192-maskable.png ← Con zona segura para la máscara de Android
+│   │   └── icon-512-maskable.png
+│   ├── fonts/                    ← Tipografías propias, no CDN (ver Tecnologías)
+│   │   ├── nunito-var.woff2
+│   │   ├── fraunces-var.woff2
+│   │   └── fraunces-var-italic.woff2
 │   ├── audio/
 │   │   ├── podcast_preciocrea.mp3
 │   │   └── Cobra lo que realmente vale tu trabajo.mp3
@@ -103,8 +110,22 @@ preciocrea/
 | Persistencia | localStorage API |
 | Offline | Service Worker + Cache API |
 | Instalación | Web App Manifest (PWA) |
-| Tipografías | Google Fonts (Fraunces + Nunito) |
+| Tipografías | Fraunces + Nunito, servidas desde el propio proyecto |
 | Publicaciones | Canvas 2D nativo (sin librerías) |
+
+**La app no contacta ningún servidor externo.** Las tipografías se sirven desde
+`assets/fonts/` en vez de Google Fonts: así se ven igual sin conexión y la IP de
+cada usuaria no viaja a un tercero cada vez que abre la app. Son las variantes
+variables (un archivo cubre todos los pesos): 96 KB frente a los 285 KB que
+pesarían los pesos por separado.
+
+### Al publicar
+
+`sw.js`, `index.html` y `manifest.webmanifest` deben servirse con
+`Cache-Control: no-cache`; el resto puede ir con caché larga, porque el service
+worker lo invalida por versión. Sin esa cabecera el service worker queda
+congelado en el servidor y **una corrección publicada no llega a quien ya tiene
+la app abierta**.
 
 ## Color y legibilidad
 

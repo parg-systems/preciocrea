@@ -31,10 +31,18 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/^�
 const readB64 = (rel) => fs.readFileSync(path.join(ROOT, rel)).toString('base64');
 
 const html   = read('index.html');
-const css    = read('css/styles.css');
 const js     = read('js/app.js');
 const studio = read('js/studio.js');
 const icon   = `data:image/png;base64,${readB64('assets/icons/icon-192.png')}`;
+
+// Las tipografías se sirven desde el proyecto, así que en el portable tienen
+// que viajar dentro del archivo. Se convierten a data: URI aquí; la CSP declara
+// `font-src 'self' data:` justamente para esto. Sin este paso el portable
+// abriría con la fuente del sistema y perdería la identidad de la marca.
+const css = read('css/styles.css').replace(
+  /url\('\.\.\/assets\/fonts\/([\w.-]+)\.woff2'\)/g,
+  (_, nombre) => `url('data:font/woff2;base64,${readB64(`assets/fonts/${nombre}.woff2`)}')`
+);
 
 // Sustituciones:
 let out = html;
@@ -78,6 +86,11 @@ out = out.replace(/href="\.\/assets\/icons\/icon-192\.png"/g, `href="${icon}"`);
 // 4) Quitar el link al manifest (no aplica en archivo único)
 out = out.replace(/<link\s+rel="manifest"[^>]*>\s*\n?/g, '');
 
+// 4b) Quitar los preload de fuentes: en el portable ya viajan dentro del
+//     <style> como data: URI, y un preload apuntando a ./assets/fonts/ que no
+//     existe es una descarga fallida en cada apertura.
+out = out.replace(/<link\s+rel="preload"[^>]*assets\/fonts\/[^>]*>\s*\n?/g, '');
+
 // 5) Comentario de cabecera para que el usuario sepa qué archivo es
 const header = `<!--
   PrecioCrea — versión portable (archivo único)
@@ -94,6 +107,13 @@ const leftovers = [];
 if (/<link\s+rel="stylesheet"\s+href="css\//.test(out)) leftovers.push('css/styles.css');
 const scriptRefs = out.match(/<script\s+src="js\/[^"]+"><\/script>/g);
 if (scriptRefs) leftovers.push(...scriptRefs.map(s => s.match(/js\/[^"]+/)[0]));
+// Cualquier ruta a assets/fonts/ que sobreviva significa una tipografía que el
+// portable pediría al disco y no encontraría.
+const fontRefs = out.match(/assets\/fonts\/[\w.-]+/g);
+if (fontRefs) leftovers.push(...new Set(fontRefs));
+// Y ningún origen externo, que es lo que este build vino a eliminar.
+const externos = out.match(/(?:href|src)="https?:\/\/(?!viviloaiza\.cl|instagram\.com|open\.spotify\.com|wa\.me)[^"]+"/g);
+if (externos) leftovers.push(...new Set(externos));
 if (leftovers.length) {
   console.error('❌ build-portable: no se inlinearon estos archivos:');
   leftovers.forEach(f => console.error(`   - ${f}`));

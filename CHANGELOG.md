@@ -8,6 +8,93 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 
 ---
 
+## [1.6.0] — 2026-07-27 · edición de aniversario
+
+Auditoría completa antes del release público: seguridad, funcionalidad y bugs.
+Nada de lo de abajo es una funcionalidad nueva — es lo que hacía falta para que
+la app aguante estar en manos de gente que no puede reportar un fallo ni
+recuperarse de él. **Los datos viven solo en el teléfono de cada creadora**, así
+que un error de guardado no tiene vuelta atrás.
+
+### Corregido — datos
+
+- **Lo guardado en el navegador entraba sin revisar.** Al importar un respaldo
+  cada producto se saneaba campo por campo, pero al arrancar la app el contenido
+  de `localStorage` se cargaba tal cual. Si ese dato no tenía la forma esperada
+  —un respaldo de una versión antigua, una escritura interrumpida al agotarse la
+  cuota, cualquier corrupción— el home reventaba al calcular el promedio y **la
+  app quedaba en blanco, sin manera de volver desde el teléfono**. Ahora el
+  arranque pasa por el mismo saneo que la importación: lo válido se conserva, lo
+  roto se descarta y la app abre siempre.
+- **El detalle escribía sobre el producto antes de que la creadora guardara.**
+  Cambiar el margen o la carga creativa modificaba el producto en el acto. Al
+  salir sin pulsar "Guardar cambios" el cambio seguía vivo, con los precios
+  viejos, y el siguiente guardado de cualquier otra cosa lo escribía a disco: un
+  producto que decía "margen 120%" con el precio calculado al 50%. **Un precio
+  equivocado y silencioso, en una app que existe para dar el precio correcto.**
+  Ahora los cambios esperan en un borrador y solo se aplican al guardar.
+- **Duplicar un producto podía chocar con otro guardado un segundo después.**
+  Los identificadores salían de la hora del sistema y podían repetirse. Con dos
+  productos del mismo id, editar o eliminar uno afectaba al otro. Los ids nuevos
+  ahora se comprueban contra los existentes, y los repetidos que ya estuvieran
+  guardados se reparan al cargar.
+
+### Corregido — la app deja de romperse
+
+- **Enter borraba el producto.** En el aviso de "¿Eliminar producto?" el foco
+  arranca en *Cancelar*, pero la tecla Enter confirmaba igual: quien la pulsara
+  creyendo que activaba el botón enfocado perdía el producto. Enter ya no
+  confirma; el botón que tenga el foco responde por su cuenta.
+- **El home no cargaba con el almacenamiento bloqueado.** El recordatorio de
+  respaldo era el único punto que leía `localStorage` sin protección, y en un
+  navegador con el almacenamiento restringido esa lectura falla y **dejaba la
+  pantalla de inicio a medio dibujar**.
+- **Sin conexión y sin caché, el service worker respondía con nada**, que para el
+  navegador es un error de red y no una página. Ahora hay una pantalla de
+  "sin conexión" que además recuerda que los productos siguen guardados.
+
+### Cambiado — actualizaciones y despliegue
+
+- **La app ya no se queda congelada en una versión vieja.** Todo se servía desde
+  el caché antes que desde la red, incluida la propia página: publicada una
+  corrección, quien ya hubiera abierto la app seguía con la versión anterior
+  hasta que el service worker se reemplazara solo. Ahora la página se pide a la
+  red primero (con el caché como red de seguridad) y el resto —estilos, código,
+  tipografías— sigue viniendo del caché, que es donde corresponde.
+- El precacheo distingue lo esencial de lo accesorio: un icono que falte ya no
+  impide que la app funcione sin conexión.
+
+### Cambiado — privacidad y accesibilidad
+
+- **Las tipografías dejan de pedirse a Google.** Fraunces y Nunito viven ahora en
+  el proyecto. Cada apertura de la app enviaba la IP de la creadora a un tercero,
+  y como el service worker no cachea otros orígenes **la tipografía de marca
+  desaparecía justo sin conexión**, que es lo que la app promete cubrir. Son las
+  variantes variables: 96 KB en total, frente a los 285 KB que pesarían los pesos
+  por separado. Sin ningún origen externo, la política de seguridad de contenido
+  pudo cerrarse.
+- **Se desbloqueó el zoom.** El viewport lo impedía. Esta app es para creadoras de
+  todas las edades y algunas simplemente no podían ampliar para leer.
+
+### Añadido
+
+- Iconos de 512×512, incluidos los *maskable* con su zona segura: Android ya no
+  recorta el icono al instalar ni muestra una pantalla de bienvenida borrosa. El
+  manifiesto declara además `id`, que mantiene la identidad de la PWA estable
+  entre despliegues.
+- El generador del portable inlinea las tipografías y **aborta si sobrevive
+  cualquier referencia externa**, así que el archivo único sigue funcionando con
+  doble clic y sin conexión.
+
+### Nota de despliegue
+
+Al publicar, `sw.js`, `index.html` y `manifest.webmanifest` deben servirse con
+`Cache-Control: no-cache`. Sin eso, la corrección del punto anterior se pierde:
+el servidor congelaría el service worker y las creadoras se quedarían con la
+versión vieja igual.
+
+---
+
 ## [1.5.0] — 2026-07-25
 
 Primer release con publicaciones. Recoge además las dos rondas de correcciones

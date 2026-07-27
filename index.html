@@ -2,8 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'">
+<!-- Sin maximum-scale ni user-scalable: bloquear el zoom deja fuera a quien
+     necesita ampliar para leer, y esta app es para creadoras de toda edad. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Las fuentes se sirven desde el propio proyecto, así que no queda ningún
+     origen externo: todo lo que la app carga es 'self' o un data: de imagen.
+     'unsafe-inline' en script-src es deuda consciente: la interfaz usa
+     manejadores onclick en línea. No hay backend, ni parámetros de URL, ni
+     contenido de terceros, y connect-src 'self' cierra cualquier salida. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="PrecioCrea">
@@ -12,8 +19,8 @@
 <link rel="icon" type="image/png" href="./assets/icons/icon-192.png">
 <link rel="apple-touch-icon" href="./assets/icons/icon-192.png">
 <link rel="manifest" href="./manifest.webmanifest">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,700;0,900;1,400&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="preload" href="./assets/fonts/nunito-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="./assets/fonts/fraunces-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
