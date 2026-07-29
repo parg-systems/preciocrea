@@ -8,6 +8,109 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 
 ---
 
+## [2.0.1] — 2026-07-29 · revisión general: bugs y experiencia de uso
+
+Auditoría completa de la 2.0.0 (lógica, UI/UX e infraestructura PWA) con
+corrección de todo lo encontrado. Las fórmulas de cálculo no se tocaron: el
+caso de continuidad (materiales 2.170 · 2,5 h × $8.000 · moderada ·
+$80.000/30 u) sigue dando mínimo $28.162 e ideal $42.243.
+
+### Corregido — crítico
+
+- **En iPhone la app moría al arrancar.** `setupInstallPrompt()` leía
+  `deferredInstallPrompt` antes de su declaración `let` (zona muerta temporal):
+  el `ReferenceError` abortaba el resto de `app.js` y dejaba sin selector de
+  icono, sin guía de instalación, sin diálogos de confirmación y sin service
+  worker. El arranque ahora vive al final del archivo, donde ninguna
+  declaración puede quedar pendiente.
+- **El flujo de actualización del service worker no funcionaba.** El
+  `skipWaiting()` del install activaba la versión nueva al instante: la página
+  se recargaba sola encima de quien estuviera a mitad de un cálculo (también en
+  la primera visita) y el banner «Hay una nueva versión» nunca llegaba a operar.
+  Ahora el SW espera, el banner es quien dispara la activación, «Recargar» tiene
+  respaldo (`location.reload()`) y la primera visita ya no se recarga sola.
+- **Fetch del SW endurecido.** Un 404/500 del hosting o una conexión colgada ya
+  no tapan la app a quien la tiene en caché (fallo → caché, con tope de 4 s);
+  la página «Sin conexión» solo se sirve a navegaciones (a un `.js` fallido le
+  llegaba HTML → pantalla en blanco); el caché se consulta acotado al propio
+  (`caches.match` global podía servir una copia vieja); el `cache.put` va en
+  `waitUntil`.
+- **La fila «Instalar en tu teléfono» nunca se ocultaba** con la app ya
+  instalada: el `display:flex` de `.settings-row` anulaba el atributo `hidden`.
+- **Las miniaturas de estilo de Publicar no elegían el estilo**: las cuatro
+  abrían siempre «Tarjeta». Ahora cada una abre el editor con su plantilla.
+
+### Corregido — datos
+
+- **Números a la chilena.** «12.000» en un campo de dinero valía $12 (el
+  navegador lo leía como decimal) y «2,5» horas valía 0 con un error confuso.
+  Los campos de dinero ahora son enteros (puntos y comas = separadores de
+  miles) y las horas aceptan coma o punto decimal.
+- **Importar un respaldo cuyos productos venían sin id** les daba a todos el
+  mismo (`Date.now()` del mismo milisegundo): borrar uno borraba todos. Se
+  reparan al entrar, igual que hace `loadProducts()`.
+- **Si el guardado fallaba (cuota llena, Safari privado), memoria y disco
+  divergían.** Eliminar, duplicar, importar y «Guardar cambios» ahora deshacen
+  el cambio en memoria cuando `localStorage` rechaza la escritura, como ya
+  hacía «Guardar producto».
+- **El doble toque en Guardar/Duplicar creaba productos repetidos**: los
+  botones quedaban vivos durante el 1,4 s previo al cambio de vista. Guarda de
+  reentrada en las tres rutas.
+- **Los recortes de rango se reflejan en el campo**: escribir 24 h/día ya no
+  calcula con 16 mientras la pantalla dice 24.
+
+### Corregido — experiencia de uso
+
+- **Lo tecleado en «Tu marca» sin pulsar Guardar ya no se filtra** a las
+  publicaciones, los respaldos ni a la guarda «¿ya configuró su marca?»: todo
+  lo que publica y exporta sale ahora de la versión guardada; el formulario
+  conserva el borrador al cambiar de pestaña, como siempre. `studioBrandDirty()`
+  dejó de mutar el estado al consultarlo, y la intención pendiente («guarda y
+  seguimos publicando») caduca al salir del formulario sin guardar.
+- **Contraste**: `--muted-soft` pasaba de 2,4:1 sobre el fondo en los rótulos
+  de pestañas, placeholders, «PRECIO MÍNIMO» y ayudas; ahora 5,1:1 (y `--muted`
+  4,7:1), sin tocar ningún color de marca. La vista previa de «Tu marca»
+  oscurece el fondo con acentos claros (el nombre desaparecía sobre mostaza o
+  verde), con la misma lógica de contraste del motor de canvas.
+- **Toasts**: los avisos largos se cortaban por ambos lados en móvil
+  (`white-space:nowrap` sin `max-width`); ahora se parten en líneas. Además se
+  anuncian a lectores de pantalla (`role="status"`).
+- **Navegación**: las flechas ← de Respaldo y Guía vuelven a la vista de origen
+  (antes siempre al inicio); tras guardar o publicar desde resultados ya no se
+  pregunta «¿salir sin guardar?»; el aviso de trabajo pendiente ignora los
+  campos prellenados por los perfiles guardados; el emoji de resultados respeta
+  el icono elegido; `setMargin`/`resetState` quedaron acotados a su vista (no
+  pisaban los chips de los asistentes); sin productos, «Publicar» lleva a
+  Calcular en vez de dejar un callejón sin salida.
+- **Móvil**: los inputs con letra bajo 16 px hacían zoom permanente en iOS
+  (materiales, detalle, asistentes, buscador); zonas de toque ampliadas en los
+  «?» de ayuda (20 px reales), el ✕ de materiales, la ✕ del buscador y la
+  papelera (que además estaba al 40 % de opacidad, casi invisible sin hover).
+- **Accesibilidad**: etiquetas (`<label for>`/`aria-label`) en todos los campos
+  de la calculadora, asistentes, marca y Estudio; las opciones de creatividad,
+  el acordeón de la guía y las tarjetas responden a teclado
+  (`role="button"`, Enter/Espacio, `aria-expanded`/`aria-pressed`);
+  `aria-current` en la pestaña activa; los diálogos mueven el foco al abrir,
+  lo devuelven al cerrar y atrapan Tab; la guía de instalación cierra con
+  Escape y con el fondo; el fondo no se desplaza bajo los modales.
+- **Menores**: el respaldo exportado añade el `<a>` al documento antes del
+  click (en navegadores antiguos no descargaba pero decía «descargado»);
+  `confirmDialog` no puede quedarse trabado si algo lanza a medio armar; el
+  selector de icono no duplica listeners al abrirse dos veces; la bienvenida no
+  reaparece en la misma sesión con el almacenamiento bloqueado; el editor del
+  Estudio vacía su marcado al cerrarse; los avisos de los asistentes explican
+  por qué el arriendo aparece en ambos con proporciones distintas (es
+  intencional: sueldo objetivo vs. costo de producir).
+
+### Notas
+
+- `BUILD` sube a 5. Recordatorio para el hosting: `sw.js`, `index.html` y
+  `manifest.webmanifest` deben servirse con `Cache-Control: no-cache` (se
+  configura en el panel del proveedor, no en el repo).
+- Pendientes documentados para otra ronda: botón Atrás de Android
+  (`history`/`popstate`), deriva de ±$1-2 al reguardar el detalle sin cambios,
+  `screenshots` del manifest y `apple-touch-icon` de 180 px.
+
 ## [2.0.0] — 2026-07-28 · rediseño completo de la interfaz
 
 Se aplica el rediseño 2.0 que estaba en `_archivo/PrecioCrea 2.0 aniversario/`.

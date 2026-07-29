@@ -125,15 +125,12 @@ const ICONS = {
 // ===================================================
 // INIT
 // ===================================================
-(function init() {
-  S.products = loadProducts();
-  S.rate     = loadRate();
-  S.fixed    = loadFixed();
-  renderHome();
-  renderProducts();
-  initWelcome();
-  setupInstallPrompt();
-})();
+// El arranque vive al FINAL del archivo. Corría aquí y en iPhone reventaba:
+// setupInstallPrompt() → renderInstallButton() leía `deferredInstallPrompt`,
+// declarada con `let` más abajo — zona muerta temporal, ReferenceError, y todo
+// lo que venía después del error quedaba sin evaluar (mismo problema ya
+// documentado con `_search`). Al final del archivo ninguna declaración puede
+// quedar pendiente.
 
 // Lo que sale de localStorage se trata con la misma desconfianza que un archivo
 // importado: puede venir de una versión antigua, de una escritura a medias
@@ -281,29 +278,43 @@ function showInstallGuide() {
     titulo.textContent = 'Esta copia no se instala';
     pasos.innerHTML = '';
     tip.innerHTML = 'Estás usando el <strong>archivo único</strong>, pensado para abrirse con doble clic sin internet. Funciona completo, pero no se puede instalar como app. Para eso pide el enlace de PrecioCrea y ábrelo en el navegador de tu teléfono.';
-    overlay.classList.add('show');
-    return;
+  } else {
+    const ios = isIos();
+    const lista = ios ? PASOS_IOS : PASOS_ANDROID;
+
+    icono.textContent = ios ? '🍎' : '📲';
+    titulo.textContent = ios ? 'Instalar en tu iPhone' : 'Instalar en tu teléfono';
+    pasos.innerHTML = lista.map((p, i) => `
+      <div class="ios-step">
+        <span class="ios-step-n">${i + 1}</span>
+        <div>${p}</div>
+      </div>`).join('');
+    tip.innerHTML = ios
+      ? '💡 Si usas Chrome en iPhone, primero abre el link en <strong>Safari</strong> — Apple solo permite instalar desde ahí.'
+      : '💡 Si no ves la opción, es porque abriste el link <strong>dentro de otra app</strong> (Instagram, WhatsApp, Facebook). Toca los tres puntos y elige "Abrir en Chrome".';
   }
 
-  const ios = isIos();
-  const lista = ios ? PASOS_IOS : PASOS_ANDROID;
-
-  icono.textContent = ios ? '🍎' : '📲';
-  titulo.textContent = ios ? 'Instalar en tu iPhone' : 'Instalar en tu teléfono';
-  pasos.innerHTML = lista.map((p, i) => `
-    <div class="ios-step">
-      <span class="ios-step-n">${i + 1}</span>
-      <div>${p}</div>
-    </div>`).join('');
-  tip.innerHTML = ios
-    ? '💡 Si usas Chrome en iPhone, primero abre el link en <strong>Safari</strong> — Apple solo permite instalar desde ahí.'
-    : '💡 Si no ves la opción, es porque abriste el link <strong>dentro de otra app</strong> (Instagram, WhatsApp, Facebook). Toca los tres puntos y elige "Abrir en Chrome".';
+  // Mismo contrato que los demás diálogos: Escape y el toque en el fondo
+  // cierran, y el foco entra al botón. Antes el único cierre era "Entendido".
+  const onKey = (ev) => { if (ev.key === 'Escape') hideInstallGuide(); };
+  const onBg  = (ev) => { if (ev.target === overlay) hideInstallGuide(); };
+  overlay.addEventListener('click', onBg);
+  document.addEventListener('keydown', onKey);
+  overlay._cerrarGuia = () => {
+    overlay.removeEventListener('click', onBg);
+    document.removeEventListener('keydown', onKey);
+  };
 
   overlay.classList.add('show');
+  const btn = overlay.querySelector('.modal-btn');
+  if (btn) setTimeout(() => btn.focus(), 50);
 }
 
 function hideInstallGuide() {
-  document.getElementById('install-overlay').classList.remove('show');
+  const overlay = document.getElementById('install-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('show');
+  if (overlay._cerrarGuia) { overlay._cerrarGuia(); overlay._cerrarGuia = null; }
 }
 
 // ===================================================
@@ -328,14 +339,22 @@ function showView(id) {
   const isTab = TAB_VIEWS.includes(id);
   document.body.classList.toggle('sheet-open', !isTab);
   document.querySelectorAll('.tab-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.view === id);
+    const activo = b.dataset.view === id;
+    b.classList.toggle('active', activo);
+    if (activo) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
   });
 
   // Al salir de "Tu marca" se vuelca el formulario al estado. Sin esto,
   // cambiar de pestaña y volver repintaba los campos desde el estado viejo y
-  // se perdía lo que la creadora llevaba escrito.
+  // se perdía lo que la creadora llevaba escrito. Es un BORRADOR: lo que
+  // publica y exporta la app sale de studioBrandPersisted(), no de aquí.
   if (previa === 'view-brand' && id !== 'view-brand' && typeof captureBrandForm === 'function') {
     captureBrandForm();
+    // La intención pendiente ("guarda tu marca y seguimos publicando") solo
+    // sobrevive mientras se está en el formulario: si la creadora se va sin
+    // guardar, retomarla días después sería un salto inexplicable al Estudio.
+    if (typeof STUDIO !== 'undefined' && STUDIO._after) STUDIO._after = null;
   }
 
   if (id === 'view-home')     renderHome();
@@ -355,9 +374,33 @@ function showView(id) {
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
+// Respaldo y guía se abren desde varios sitios (encabezado, "Tu marca", los
+// pilares del inicio): el ← debe volver a donde se estaba, no siempre al
+// inicio. Mismo patrón que S.rateFrom / S.fixedFrom en los asistentes.
+function vistaActiva() {
+  const v = document.querySelector('.view.active');
+  return v ? v.id : 'view-home';
+}
+
+function openBackup() {
+  const previa = vistaActiva();
+  if (previa !== 'view-backup') S.backupFrom = previa;
+  showView('view-backup');
+}
+
+function closeBackup() {
+  showView(S.backupFrom || 'view-home');
+}
+
+function closeHelp() {
+  showView(S.helpFrom || 'view-home');
+}
+
 // Abre la guía en una sección concreta. Sin argumento deja abierta la primera,
 // que es el estado natural al entrar por el botón "?".
 function openHelp(sectionId) {
+  const previa = vistaActiva();
+  if (previa !== 'view-help') S.helpFrom = previa;
   showView('view-help');
   const secciones = document.querySelectorAll('.help-section');
   secciones.forEach(s => s.classList.remove('open'));
@@ -365,6 +408,10 @@ function openHelp(sectionId) {
   const destino = sectionId ? document.getElementById(sectionId) : secciones[0];
   if (!destino) return;
   destino.classList.add('open');
+  secciones.forEach(s => {
+    const hd = s.querySelector('.help-section-hd');
+    if (hd) hd.setAttribute('aria-expanded', String(s.classList.contains('open')));
+  });
   if (!sectionId) return;
 
   // Nada de esperar a un fotograma: abrir la sección es solo añadir una clase,
@@ -429,8 +476,15 @@ async function goHome() {
 function trabajoPendiente(id) {
   if (id === 'view-calc') {
     // "inp-units" no cuenta: viene con 20 por defecto y nadie lo escribió.
-    const escritos = ['inp-name', 'inp-desc', 'inp-hours', 'inp-rate', 'inp-fixed']
-      .some(k => ((document.getElementById(k) || {}).value || '').trim());
+    // Tampoco cuentan inp-rate/inp-fixed cuando traen exactamente el valor que
+    // los perfiles guardados rellenan solos: avisar "lo escrito se pierde"
+    // sobre un formulario que la creadora no tocó enseña a ignorar el aviso.
+    const val = k => ((document.getElementById(k) || {}).value || '').trim();
+    const prefRate  = (S.rate  && S.rate.remember)  ? String(S.rate.rate)   : '';
+    const prefFixed = (S.fixed && S.fixed.remember) ? String(S.fixed.fixed) : '';
+    const escritos = ['inp-name', 'inp-desc', 'inp-hours'].some(k => val(k))
+      || (val('inp-rate')  !== '' && val('inp-rate')  !== prefRate)
+      || (val('inp-fixed') !== '' && val('inp-fixed') !== prefFixed);
     const materiales = Array.from(document.querySelectorAll('.mat-name, .mat-cost'))
       .some(i => (i.value || '').trim());
     if (!escritos && !materiales) return null;
@@ -441,6 +495,9 @@ function trabajoPendiente(id) {
   }
 
   if (id === 'view-results') {
+    // Si ya se guardó (botón Guardar o "Publícalo hoy mismo"), no hay nada que
+    // perder y preguntar sería mentir.
+    if (S.p._saved) return null;
     return {
       title: '¿Salir sin guardar el producto?',
       message: `"${S.p.name}" está calculado pero no guardado. Si sales ahora tendrás que calcularlo de nuevo.`
@@ -470,7 +527,7 @@ function detTieneCambios() {
   const p = S.products.find(x => x.id === S._detId);
   if (!p || !S._detDraft) return false;
 
-  const num = id => sanitizeNum(((document.getElementById(id) || {}).value));
+  const num = id => parseMonto(((document.getElementById(id) || {}).value));
   const descEl = document.getElementById('det-desc');
 
   return S._detDraft.crLvl !== p.crLvl
@@ -567,7 +624,7 @@ function renderProducts() {
   }
 
   list.innerHTML = visibles.map(p => `
-    <div class="product-card" onclick="showDetail(${p.id})">
+    <div class="product-card" onclick="showDetail(${p.id})" role="button" tabindex="0" aria-label="Abrir ${esc(p.name)}">
       <div class="pc-emoji">${p.emoji ? esc(p.emoji) : '🎨'}</div>
       <div class="pc-info">
         <div class="pc-name">${esc(p.name)}</div>
@@ -578,8 +635,8 @@ function renderProducts() {
         </div>
       </div>
       <div class="pc-actions">
-        <button class="pc-studio" onclick="event.stopPropagation();openStudio('historia',${p.id})" title="Publicar">📸</button>
-        <button class="pc-delete" onclick="delProduct(event,${p.id})" title="Eliminar">🗑️</button>
+        <button class="pc-studio" onclick="event.stopPropagation();openStudio('historia',${p.id})" title="Publicar" aria-label="Publicar ${esc(p.name)}">📸</button>
+        <button class="pc-delete" onclick="delProduct(event,${p.id})" title="Eliminar" aria-label="Eliminar ${esc(p.name)}">🗑️</button>
       </div>
     </div>`).join('');
 }
@@ -599,9 +656,14 @@ function clearSearch() {
 // ===================================================
 // BIENVENIDA DE ANIVERSARIO
 // ===================================================
+// Respaldo en memoria para cuando localStorage está bloqueado (Safari privado,
+// cookies deshabilitadas): sin él, la bienvenida reaparecía en cada arranque
+// sin forma de silenciarla. Al menos dentro de la sesión se queda cerrada.
+let _welcomeVista = false;
+
 function initWelcome() {
-  let visto = false;
-  try { visto = localStorage.getItem(KEY_WELCOME) === '1'; } catch(e) {}
+  let visto = _welcomeVista;
+  try { visto = visto || localStorage.getItem(KEY_WELCOME) === '1'; } catch(e) {}
   if (!visto) showWelcome();
 }
 
@@ -612,12 +674,17 @@ function showWelcome() {
   // Sin esto, el fondo sigue desplazándose bajo la bienvenida en iOS.
   document.body.style.overflow = 'hidden';
   el.scrollTop = 0;
+  // Es un role="dialog": el foco tiene que entrar en él, o un lector de
+  // pantalla se queda leyendo la app tapada de fondo.
+  const btn = document.getElementById('welcome-cta') || el.querySelector('button');
+  if (btn) setTimeout(() => btn.focus(), 50);
 }
 
 function dismissWelcome() {
   const el = document.getElementById('welcome');
   if (el) el.hidden = true;
   document.body.style.overflow = '';
+  _welcomeVista = true;
   try { localStorage.setItem(KEY_WELCOME, '1'); } catch(e) {}
 }
 
@@ -646,6 +713,7 @@ function startCalcWithExample() {
 // DUPLICAR / COMPARTIR
 // ===================================================
 function duplicateProduct(id) {
+  if (_guardando) return;
   const p = S.products.find(x => x.id === id);
   if (!p) return;
   const copy = {
@@ -656,9 +724,13 @@ function duplicateProduct(id) {
     date: new Date().toLocaleDateString('es-CL')
   };
   S.products.unshift(copy);
-  if (!persistProducts()) return;
+  if (!persistProducts()) {
+    S.products = S.products.filter(x => x.id !== copy.id);
+    return;
+  }
   toast('📋 Producto duplicado');
-  setTimeout(() => { renderHome(); showView('view-products'); }, 700);
+  _guardando = true;
+  setTimeout(() => { _guardando = false; renderHome(); showView('view-products'); }, 700);
 }
 
 function shareWhatsApp(id) {
@@ -725,17 +797,24 @@ function resetState() {
   q('mat-list').innerHTML = `
     <div class="mat-row">
       <input class="field-input mat-name" type="text" placeholder="ej: Aceite de coco" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)">
-      <input class="field-input mat-cost" type="number" placeholder="$" min="0" max="99999999" inputmode="numeric" oninput="calcMatTotal()" style="--step-accent:var(--coral-deep)">
-      <button class="btn-rem" onclick="remMat(this)">✕</button>
+      <input class="field-input mat-cost" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" oninput="calcMatTotal()" style="--step-accent:var(--coral-deep)" aria-label="Costo del material">
+      <button class="btn-rem" onclick="remMat(this)" aria-label="Quitar material">✕</button>
     </div>`;
 
   // Reset creativity
-  document.querySelectorAll('.cr-option').forEach(o => o.classList.remove('sel'));
-  document.querySelector('[data-val="facil"]').classList.add('sel');
+  document.querySelectorAll('.cr-option').forEach(o => {
+    o.classList.remove('sel');
+    o.setAttribute('aria-pressed', 'false');
+  });
+  const crFacil = document.querySelector('.cr-option[data-val="facil"]');
+  if (crFacil) { crFacil.classList.add('sel'); crFacil.setAttribute('aria-pressed', 'true'); }
 
-  // Reset margin buttons
-  document.querySelectorAll('.m-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('[data-m="50"]').classList.add('active');
+  // Reset margin buttons — SOLO los de la pantalla de resultados: la clase
+  // .m-btn también la usan los chips de los asistentes y del Estudio, y un
+  // querySelectorAll global les borraría la selección a todos.
+  document.querySelectorAll('#view-results .m-btn').forEach(b => b.classList.remove('active'));
+  const m50 = document.querySelector('#view-results [data-m="50"]');
+  if (m50) m50.classList.add('active');
 }
 
 function navBack() {
@@ -753,13 +832,16 @@ function goStep(n) {
     if (!S.p.emojiManual) S.p.emoji = getEmoji(nm);
     // Validate that at least one material has a positive cost
     const costs = Array.from(document.querySelectorAll('.mat-cost'));
-    const hasValidMat = costs.some(i => sanitizeNum(i.value) > 0);
+    const hasValidMat = costs.some(i => parseMonto(i.value) > 0);
     if (!hasValidMat) { toast('Ingresa el costo de al menos un material 🧺'); return; }
     S.p.matTotal = getMatTotal();
   }
   if (n === 3) {
-    const h = sanitizeNum(document.getElementById('inp-hours').value);
-    const r = sanitizeNum(document.getElementById('inp-rate').value);
+    const hBruto = parseHoras(document.getElementById('inp-hours').value);
+    // Nadie le dedica 10.000 horas a una pieza: sobre ese tope es un dedazo
+    // (240 en vez de 2.40) y produciría un precio absurdo sin aviso.
+    const h = reflejarRecorte('inp-hours', hBruto, Math.min(hBruto, 9999));
+    const r = parseMonto(document.getElementById('inp-rate').value);
     if (h <= 0) { toast('Las horas deben ser mayor a 0 ⏰'); return; }
     if (r <= 0) { toast('El valor hora debe ser mayor a 0 💙'); return; }
     S.p.hours = h; S.p.rate = r;
@@ -872,8 +954,8 @@ function renderRateWizard() {
   document.getElementById('rate-rows').innerHTML = RATE_GASTOS.map(g => `
     <div class="rate-row">
       <label class="rate-row-lbl" for="rg-${g.id}">${g.lbl}</label>
-      <input class="rate-row-input" type="number" id="rg-${g.id}" data-gasto="${g.id}"
-             min="0" max="99999999" step="10000" inputmode="numeric"
+      <input class="rate-row-input" type="text" inputmode="numeric" id="rg-${g.id}" data-gasto="${g.id}"
+             maxlength="10" autocomplete="off"
              value="${d.gastos[g.id]}" oninput="rateRecalc()">
     </div>`).join('');
 
@@ -935,12 +1017,14 @@ function rateRecalc() {
 
   // Volcar los campos libres al borrador
   document.querySelectorAll('[data-gasto]').forEach(i => {
-    d.gastos[i.dataset.gasto] = sanitizeNum(i.value);
+    d.gastos[i.dataset.gasto] = parseMonto(i.value);
   });
-  d.metaDirecta = sanitizeNum(document.getElementById('rate-meta-directa').value);
-  d.hoursDay    = Math.min(16, sanitizeNum(document.getElementById('rate-hours-day').value));
+  d.metaDirecta = parseMonto(document.getElementById('rate-meta-directa').value);
+  const hdBruto = parseHoras(document.getElementById('rate-hours-day').value);
+  d.hoursDay    = reflejarRecorte('rate-hours-day', hdBruto, Math.min(16, hdBruto));
   d.taxOn       = document.getElementById('rate-tax-on').checked;
-  d.tax         = Math.min(60, sanitizeNum(document.getElementById('rate-tax').value));
+  const txBruto = parseMonto(document.getElementById('rate-tax').value);
+  d.tax         = reflejarRecorte('rate-tax', txBruto, Math.min(60, txBruto));
 
   const directo = d.mode === 'directo';
   document.getElementById('rate-gastos').hidden  = directo;
@@ -1144,9 +1228,9 @@ function renderFixedWizard() {
   const fila = (g, grupo) => `
     <div class="rate-row">
       <label class="rate-row-lbl" for="fx-${grupo}-${g.id}">${g.lbl}</label>
-      <input class="rate-row-input" type="number" id="fx-${grupo}-${g.id}"
+      <input class="rate-row-input" type="text" inputmode="numeric" id="fx-${grupo}-${g.id}"
              data-fixed="${grupo}" data-fid="${g.id}"
-             min="0" max="99999999" step="1000" inputmode="numeric"
+             maxlength="10" autocomplete="off"
              value="${d[grupo][g.id]}" oninput="fixedRecalc()">
     </div>`;
 
@@ -1181,11 +1265,13 @@ function fixedRecalc() {
   if (!d) return;
 
   document.querySelectorAll('[data-fixed]').forEach(i => {
-    d[i.dataset.fixed][i.dataset.fid] = sanitizeNum(i.value);
+    d[i.dataset.fixed][i.dataset.fid] = parseMonto(i.value);
   });
-  d.toolsValue = sanitizeNum(document.getElementById('fixed-tools-value').value);
-  d.toolsYears = Math.min(20, Math.max(1, Math.round(sanitizeNum(document.getElementById('fixed-tools-years').value) || 1)));
-  d.units      = Math.min(100000, Math.max(1, Math.round(sanitizeNum(document.getElementById('fixed-units').value) || 1)));
+  d.toolsValue = parseMonto(document.getElementById('fixed-tools-value').value);
+  const tyBruto = parseMonto(document.getElementById('fixed-tools-years').value);
+  d.toolsYears = Math.max(1, reflejarRecorte('fixed-tools-years', tyBruto, Math.min(20, tyBruto)) || 1);
+  const unBruto = parseMonto(document.getElementById('fixed-units').value);
+  d.units      = Math.max(1, reflejarRecorte('fixed-units', unBruto, Math.min(100000, unBruto)) || 1);
 
   const hogarBruto = FIXED_HOGAR.reduce((s, g) => s + (d.hogar[g.id] || 0), 0);
   const hogar   = Math.round(hogarBruto * d.share / 100);
@@ -1263,8 +1349,8 @@ function addMat() {
   row.className = 'mat-row';
   row.innerHTML = `
     <input class="field-input mat-name" type="text" placeholder="ej: Fragancia" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)">
-    <input class="field-input mat-cost" type="number" placeholder="$" min="0" max="99999999" inputmode="numeric" oninput="calcMatTotal()" style="--step-accent:var(--coral-deep)">
-    <button class="btn-rem" onclick="remMat(this)">✕</button>`;
+    <input class="field-input mat-cost" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" oninput="calcMatTotal()" style="--step-accent:var(--coral-deep)" aria-label="Costo del material">
+    <button class="btn-rem" onclick="remMat(this)" aria-label="Quitar material">✕</button>`;
   list.appendChild(row);
   row.querySelector('input').focus();
 }
@@ -1277,14 +1363,10 @@ function remMat(btn) {
 
 function getMatTotal() {
   return Array.from(document.querySelectorAll('.mat-cost'))
-    .reduce((s, i) => s + sanitizeNum(i.value), 0);
+    .reduce((s, i) => s + parseMonto(i.value), 0);
 }
 
 function calcMatTotal() {
-  // Also clamp the input itself to prevent negatives showing
-  document.querySelectorAll('.mat-cost').forEach(i => {
-    if (parseFloat(i.value) < 0) i.value = 0;
-  });
   document.getElementById('mat-total').textContent = fmt(getMatTotal());
 }
 
@@ -1292,8 +1374,8 @@ function calcMatTotal() {
 // LABOR PREVIEW
 // ===================================================
 function updateLaborPreview() {
-  const h = parseFloat(document.getElementById('inp-hours').value)||0;
-  const r = parseFloat(document.getElementById('inp-rate').value)||0;
+  const h = parseHoras(document.getElementById('inp-hours').value);
+  const r = parseMonto(document.getElementById('inp-rate').value);
   const prev = document.getElementById('labor-preview');
   if (h > 0 && r > 0) {
     document.getElementById('labor-val').textContent = fmt(h * r);
@@ -1307,8 +1389,12 @@ function updateLaborPreview() {
 // CREATIVITY
 // ===================================================
 function selCr(el) {
-  document.querySelectorAll('.cr-option').forEach(o => o.classList.remove('sel'));
+  document.querySelectorAll('.cr-option').forEach(o => {
+    o.classList.remove('sel');
+    o.setAttribute('aria-pressed', 'false');
+  });
   el.classList.add('sel');
+  el.setAttribute('aria-pressed', 'true');
   S.p.cr = el.dataset.val;
 }
 
@@ -1316,8 +1402,8 @@ function selCr(el) {
 // RESULTS
 // ===================================================
 function showResults() {
-  const fixed = sanitizeNum(document.getElementById('inp-fixed').value);
-  const units = sanitizeNum(document.getElementById('inp-units').value);
+  const fixed = parseMonto(document.getElementById('inp-fixed').value);
+  const units = parseMonto(document.getElementById('inp-units').value);
   if (units <= 0) { toast('Las unidades mensuales deben ser mayor a 0 📦'); return; }
   S.p.fixed = fixed;
   S.p.units = units;
@@ -1345,7 +1431,10 @@ function renderResults() {
   document.getElementById('res-ideal').textContent      = fmt(r.idealP);
   document.getElementById('res-ideal-iva').textContent  = fmt(r.idealP * (1 + IVA));
   document.getElementById('res-margin-lbl').textContent = S.p.margin;
-  document.getElementById('confetti-emoji').textContent = getEmoji(S.p.name);
+  // El icono que eligió la creadora manda; solo sin elección se infiere del
+  // nombre. "Sin icono" cae al 🎨 de reserva, igual que la lista de productos.
+  document.getElementById('confetti-emoji').textContent =
+    (S.p.emojiManual ? S.p.emoji : getEmoji(S.p.name)) || '🎨';
 
   renderBars(r);
   renderWisdom(r);
@@ -1386,9 +1475,13 @@ function renderWisdom(r) {
 }
 
 function setMargin(btn) {
-  document.querySelectorAll('.m-btn').forEach(b => b.classList.remove('active'));
+  // Acotado a resultados: .m-btn también existe en asistentes y Estudio.
+  document.querySelectorAll('#view-results .m-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   S.p.margin = parseInt(btn.dataset.m);
+  // Cambiar el margen después de guardar deja el resultado en pantalla distinto
+  // del producto guardado: vuelve a haber trabajo pendiente.
+  S.p._saved = false;
   const r = calc();
   document.getElementById('res-ideal').textContent      = fmt(r.idealP);
   document.getElementById('res-ideal-iva').textContent  = fmt(r.idealP * (1 + IVA));
@@ -1398,9 +1491,15 @@ function setMargin(btn) {
 // ===================================================
 // SAVE
 // ===================================================
+// El doble toque es lo normal en móvil cuando la primera pulsación no da
+// feedback inmediato, y aquí el botón sigue vivo 1,4 s hasta el cambio de
+// vista: sin esta guarda salían dos productos idénticos con ids distintos.
+let _guardando = false;
+
 // Devuelve el id del producto creado, o null si no se pudo guardar.
 // `silencioso` lo usa publishFromResults(), que encadena con el Estudio.
 function saveProduct(silencioso) {
+  if (_guardando) return null;
   const r = calc();
   const prod = {
     id:     nextProductId(),
@@ -1428,9 +1527,13 @@ function saveProduct(silencioso) {
   }
   renderHome();
   renderProducts();
+  // El cálculo de resultados quedó guardado: salir de esa pantalla ya no debe
+  // preguntar por trabajo pendiente.
+  S.p._saved = true;
   if (!silencioso) {
     toast('✨ ¡Producto guardado!');
-    setTimeout(() => showView('view-products'), 1400);
+    _guardando = true;
+    setTimeout(() => { _guardando = false; showView('view-products'); }, 1400);
   }
   return prod.id;
 }
@@ -1458,12 +1561,16 @@ function delProduct(e, id) {
     dangerous: true
   }).then(ok => {
     if (!ok) return;
+    const antes = S.products;
     S.products = S.products.filter(p => p.id !== id);
-    if (!persistProducts()) return;
+    // Si no se pudo escribir, se deshace: sin el rollback quedaba una tarjeta
+    // zombi en pantalla (el producto seguía visible pero ya no existía en
+    // memoria) y el borrado se colaba a disco con el siguiente guardado.
+    if (!persistProducts()) { S.products = antes; return; }
     renderHome();
     renderProducts();
     toast('🗑️ Producto eliminado');
-  });
+  }).catch(() => {});
 }
 
 // ===================================================
@@ -1485,7 +1592,8 @@ function showDetail(idOrEvent, id) {
     { val:'obra',     e:'🏆', lbl:'Autor' },
   ];
   const crGrid = crOpts.map(o => `
-    <div class="det-cr-opt${p.crLvl===o.val?' sel':''}" data-val="${o.val}" onclick="detSelCr(this,${realId})">
+    <div class="det-cr-opt${p.crLvl===o.val?' sel':''}" data-val="${o.val}" onclick="detSelCr(this,${realId})"
+         role="button" tabindex="0" aria-pressed="${p.crLvl===o.val}">
       <div class="dco-emoji">${o.e}</div>
       <div class="dco-lbl">${o.lbl}</div>
     </div>`).join('');
@@ -1563,16 +1671,16 @@ function showDetail(idOrEvent, id) {
       <div class="det-edit-title">Composición del precio</div>
 
       <div class="det-field-row">
-        <div class="det-field-lbl">🧺 Materiales</div>
-        <input class="det-field-input" type="number" id="det-mat" value="${p.mat}" min="0" max="99999999" inputmode="numeric" oninput="detRecalc(${realId})">
+        <label class="det-field-lbl" for="det-mat">🧺 Materiales</label>
+        <input class="det-field-input" type="text" inputmode="numeric" id="det-mat" value="${p.mat}" maxlength="10" autocomplete="off" oninput="detRecalc(${realId})">
       </div>
       <div class="det-field-row">
-        <div class="det-field-lbl">⏰ Tu tiempo</div>
-        <input class="det-field-input" type="number" id="det-labor" value="${p.labor}" min="0" max="99999999" inputmode="numeric" oninput="detRecalc(${realId})">
+        <label class="det-field-lbl" for="det-labor">⏰ Tu tiempo</label>
+        <input class="det-field-input" type="text" inputmode="numeric" id="det-labor" value="${p.labor}" maxlength="10" autocomplete="off" oninput="detRecalc(${realId})">
       </div>
       <div class="det-field-row">
-        <div class="det-field-lbl">🏠 Costos fijos</div>
-        <input class="det-field-input" type="number" id="det-struct" value="${p.struct}" min="0" max="99999999" inputmode="numeric" oninput="detRecalc(${realId})">
+        <label class="det-field-lbl" for="det-struct">🏠 Costos fijos</label>
+        <input class="det-field-input" type="text" inputmode="numeric" id="det-struct" value="${p.struct}" maxlength="10" autocomplete="off" oninput="detRecalc(${realId})">
       </div>
 
       <div class="field-label" style="margin-top:18px; margin-bottom:10px">🎨 Carga creativa</div>
@@ -1596,9 +1704,9 @@ function detRecalc(id) {
   const p = S.products.find(p => p.id === id);
   if (!p) return;
   const d      = S._detDraft || { crLvl: p.crLvl, margin: p.margin };
-  const mat    = sanitizeNum(document.getElementById('det-mat').value);
-  const labor  = sanitizeNum(document.getElementById('det-labor').value);
-  const struct = sanitizeNum(document.getElementById('det-struct').value);
+  const mat    = parseMonto(document.getElementById('det-mat').value);
+  const labor  = parseMonto(document.getElementById('det-labor').value);
+  const struct = parseMonto(document.getElementById('det-struct').value);
   const cr     = (mat + labor) * (CR_MULT[d.crLvl] || 0.05);
   const minP   = mat + labor + cr + struct;
   const idealP = minP * (1 + d.margin / 100);
@@ -1610,8 +1718,12 @@ function detRecalc(id) {
 
 function detSelCr(el, id) {
   if (!S._detDraft) return;
-  document.querySelectorAll('.det-cr-opt').forEach(o => o.classList.remove('sel'));
+  document.querySelectorAll('.det-cr-opt').forEach(o => {
+    o.classList.remove('sel');
+    o.setAttribute('aria-pressed', 'false');
+  });
   el.classList.add('sel');
+  el.setAttribute('aria-pressed', 'true');
   S._detDraft.crLvl = el.dataset.val;
   detRecalc(id);
 }
@@ -1626,12 +1738,13 @@ function detSetMargin(btn, id) {
 }
 
 function saveDetProduct(id) {
+  if (_guardando) return;
   const idx = S.products.findIndex(p => p.id === id);
   if (idx < 0) return;
   const p = S.products[idx];
-  const mat    = sanitizeNum(document.getElementById('det-mat').value);
-  const labor  = sanitizeNum(document.getElementById('det-labor').value);
-  const struct = sanitizeNum(document.getElementById('det-struct').value);
+  const mat    = parseMonto(document.getElementById('det-mat').value);
+  const labor  = parseMonto(document.getElementById('det-labor').value);
+  const struct = parseMonto(document.getElementById('det-struct').value);
   if (mat + labor + struct <= 0) { toast('Al menos un valor debe ser mayor a 0 🔢'); return; }
   // Recién aquí el borrador se vuelve definitivo.
   const d      = S._detDraft || { crLvl: p.crLvl, margin: p.margin };
@@ -1641,6 +1754,7 @@ function saveDetProduct(id) {
   const minP   = mat + labor + cr + struct;
   const idealP = minP * (1 + margin / 100);
   const descEl = document.getElementById('det-desc');
+  const previo = p;
   S.products[idx] = {
     ...p,
     desc: descEl ? descEl.value.trim().slice(0, MAX_DESC_LEN) : (p.desc || ''),
@@ -1649,13 +1763,17 @@ function saveDetProduct(id) {
     mat:Math.round(mat), labor:Math.round(labor), struct:Math.round(struct),
     cr:Math.round(cr), minP:Math.round(minP), idealP:Math.round(idealP)
   };
+  // El borrador solo se descarta si la escritura llegó a disco. Si falla, se
+  // restaura el producto anterior: memoria y localStorage no pueden divergir,
+  // y el aviso de "cambios sin guardar" debe seguir funcionando.
+  if (!persistProducts()) { S.products[idx] = previo; return; }
   S._detDraft = null;
   S._detId    = null;
-  if (!persistProducts()) return;
   renderHome();
   renderProducts();
   toast('✨ ¡Cambios guardados!');
-  setTimeout(() => showView('view-products'), 1400);
+  _guardando = true;
+  setTimeout(() => { _guardando = false; showView('view-products'); }, 1400);
 }
 
 // ===================================================
@@ -1693,7 +1811,9 @@ function exportData() {
     version: 4,
     exportDate: new Date().toLocaleDateString('es-CL'),
     products: S.products,
-    brand: studioBrandOrDefault(),
+    // La marca GUARDADA: un nombre a medio teclear en el formulario no debe
+    // colarse en un respaldo.
+    brand: studioBrandPersisted(),
     rate: S.rate || null,
     fixed: S.fixed || null
   };
@@ -1703,7 +1823,11 @@ function exportData() {
   const date = new Date().toISOString().slice(0,10);
   a.href     = url;
   a.download = `preciocrea-respaldo-${date}.json`;
+  // El <a> tiene que estar en el documento: fuera de él, algunos navegadores
+  // ignoran el click() y el toast diría "descargado" sin haber descargado.
+  document.body.appendChild(a);
   a.click();
+  a.remove();
   // Revocar de inmediato aborta la descarga en algunos WebView de Android.
   setTimeout(() => URL.revokeObjectURL(url), 4000);
   // Marca que se respaldó para apagar el recordatorio
@@ -1885,8 +2009,22 @@ function importData(input) {
         input.value = ''; return;
       }
 
+      // Reparar ids repetidos DENTRO del archivo, después de deduplicar contra
+      // lo guardado. Dos productos sin id válido reciben ambos Date.now() del
+      // mismo milisegundo en sanitizeImportedProduct: con ids gemelos, borrar
+      // uno borraría los dos y el detalle abriría siempre el primero. Mismo
+      // patrón que loadProducts().
+      const usados = new Set(S.products.map(p => Number(p.id)));
+      for (const p of newOnes) {
+        if (usados.has(Number(p.id))) p.id = nextProductId(usados);
+        usados.add(Number(p.id));
+      }
+
+      const antes = S.products;
       S.products = [...newOnes, ...S.products];
-      if (!persistProducts()) { input.value = ''; return; }
+      // Si el almacenamiento falla hay que deshacer: dejarlos en memoria haría
+      // creer que se importaron, y el siguiente arranque los perdería.
+      if (!persistProducts()) { S.products = antes; input.value = ''; return; }
       renderHome();
       renderProducts();
       toast(`✅ ${newOnes.length} producto(s) importado/s`);
@@ -1907,6 +2045,8 @@ function importData(input) {
 // ===================================================
 function toggleHelp(section) {
   section.classList.toggle('open');
+  const hd = section.querySelector('.help-section-hd');
+  if (hd) hd.setAttribute('aria-expanded', String(section.classList.contains('open')));
 }
 
 function toggleTip(id) {
@@ -1923,16 +2063,52 @@ document.addEventListener('click', e => {
   }
 });
 
+// Los "botones" que son <div onclick> (opciones de creatividad, acordeón de la
+// guía, tarjetas de producto) responden a Enter y Espacio como un botón de
+// verdad. Delegado, así cubre también los que se generan por innerHTML.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target;
+  if (el && el.getAttribute && el.getAttribute('role') === 'button'
+      && el.tagName !== 'BUTTON' && el.tagName !== 'A') {
+    e.preventDefault();
+    el.click();
+  }
+});
+
 // ===================================================
 // HELPERS
 // ===================================================
 
-// Devuelve un número finito no negativo, capado a MAX_INPUT_NUM.
-// Cualquier entrada inválida (NaN, Infinity, negativo, no numérico) → 0.
-function sanitizeNum(val) {
-  const n = parseFloat(val);
+// Dinero en pesos chilenos: SIEMPRE enteros. Puntos y comas son separadores de
+// miles, nunca decimales — "12.000" son doce mil pesos, no doce. Con parseFloat
+// ese mismo texto valía 12 y el precio salía calculado sobre nada; y "12,000"
+// directamente no parseaba. Se toman solo los dígitos y listo.
+function parseMonto(val) {
+  const digitos = String(val ?? '').replace(/\D/g, '');
+  if (!digitos) return 0;
+  return Math.min(parseInt(digitos.slice(0, 15), 10), MAX_INPUT_NUM);
+}
+
+// Horas y cantidades con decimales: acepta coma o punto ("2,5" y "2.5").
+// En es-CL el separador decimal es la coma, y el <input type=number> la
+// rechazaba en silencio: la creadora veía 2,5 escrito y la app leía 0.
+function parseHoras(val) {
+  const n = parseFloat(String(val ?? '').trim().replace(',', '.'));
   if (!isFinite(n) || isNaN(n) || n < 0) return 0;
   return Math.min(n, MAX_INPUT_NUM);
+}
+
+// Refleja un recorte de rango en el campo: si la fórmula va a usar 16 horas,
+// la pantalla no puede seguir diciendo 24 — quien rehaga la cuenta a mano no
+// llegaría al mismo número. Solo se pisa el campo cuando hubo recorte por
+// arriba: corregir mientras se teclea un valor incompleto movería el cursor.
+function reflejarRecorte(id, bruto, recortado) {
+  if (bruto > recortado) {
+    const el = document.getElementById(id);
+    if (el) el.value = recortado;
+  }
+  return recortado;
 }
 
 function fmt(n) {
@@ -1962,9 +2138,14 @@ const ICON_CHOICES = [
 let _iconTarget = null;   // 'inp-emoji' (calculadora) o 'det-emoji' (detalle)
 
 function openIconPicker(btnId) {
+  const overlay0 = document.getElementById('icon-overlay');
+  // Doble toque en el botón: la segunda apertura registraría otro juego de
+  // listeners sobre la misma parrilla y elegir un icono aplicaría dos veces.
+  if (overlay0 && overlay0.classList.contains('show')) return;
   _iconTarget = btnId === 'inp-emoji-btn' ? 'calc' : 'det';
   const grid = document.getElementById('icon-grid');
   const actual = _iconTarget === 'calc' ? S.p.emoji : (S._detEmoji || '');
+  const invocador = document.getElementById(btnId);
 
   grid.innerHTML = ICON_CHOICES.map(e => `
     <button type="button" class="icon-opt${e === actual ? ' sel' : ''}" data-e="${e}">${e}</button>
@@ -1978,6 +2159,7 @@ function openIconPicker(btnId) {
     document.getElementById('icon-none').removeEventListener('click', onNone);
     overlay.removeEventListener('click', onBg);
     document.removeEventListener('keydown', onKey);
+    if (invocador && document.contains(invocador)) invocador.focus();
   };
   const aplicar = (emoji) => { setProductIcon(emoji); cerrar(); };
   const onPick = (ev) => {
@@ -1994,6 +2176,9 @@ function openIconPicker(btnId) {
   overlay.addEventListener('click', onBg);
   document.addEventListener('keydown', onKey);
   overlay.classList.add('show');
+  // Mover el foco dentro del diálogo: el icono elegido (o el primero).
+  const sel = grid.querySelector('.icon-opt.sel') || grid.querySelector('.icon-opt');
+  if (sel) setTimeout(() => sel.focus(), 50);
 }
 
 // Pinta un icono en su botón. Sin icono se muestra un signo de suma tenue,
@@ -2063,43 +2248,64 @@ function confirmDialog({ icon = '⚠️', title = '¿Confirmar?', message = '', 
   return new Promise(resolve => {
     if (_confirmBusy) { resolve(false); return; }
     _confirmBusy = true;
-    const overlay = document.getElementById('modal-overlay');
-    const btnOk   = document.getElementById('modal-confirm');
-    const btnNo   = document.getElementById('modal-cancel');
-    document.getElementById('modal-icon').textContent  = icon;
-    document.getElementById('modal-title').textContent = title;
-    document.getElementById('modal-msg').textContent   = message;
-    btnOk.textContent = confirmText;
-    btnNo.textContent = cancelText;
-    btnOk.classList.toggle('safe', !dangerous);
+    // Si algo revienta antes de armar el diálogo, el candado no puede quedar
+    // echado para siempre: todos los diálogos posteriores devolverían false en
+    // silencio y "Eliminar" dejaría de funcionar sin ninguna pista.
+    try {
+      const overlay = document.getElementById('modal-overlay');
+      const btnOk   = document.getElementById('modal-confirm');
+      const btnNo   = document.getElementById('modal-cancel');
+      document.getElementById('modal-icon').textContent  = icon;
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-msg').textContent   = message;
+      btnOk.textContent = confirmText;
+      btnNo.textContent = cancelText;
+      btnOk.classList.toggle('safe', !dangerous);
 
-    const cleanup = (val) => {
-      overlay.classList.remove('show');
-      btnOk.removeEventListener('click', onOk);
-      btnNo.removeEventListener('click', onNo);
-      overlay.removeEventListener('click', onBgClick);
-      document.removeEventListener('keydown', onKey);
+      // Para devolver el foco al cerrar: sin esto, tras cancelar con Escape el
+      // foco queda perdido en el body y quien navega con teclado empieza de cero.
+      const invocador = document.activeElement;
+
+      const cleanup = (val) => {
+        overlay.classList.remove('show');
+        btnOk.removeEventListener('click', onOk);
+        btnNo.removeEventListener('click', onNo);
+        overlay.removeEventListener('click', onBgClick);
+        document.removeEventListener('keydown', onKey);
+        _confirmBusy = false;
+        if (invocador && typeof invocador.focus === 'function' && document.contains(invocador)) {
+          invocador.focus();
+        }
+        resolve(val);
+      };
+      const onOk = () => cleanup(true);
+      const onNo = () => cleanup(false);
+      const onBgClick = (e) => { if (e.target === overlay) cleanup(false); };
+      // Escape cancela. Enter NO confirma a propósito: el foco arranca en
+      // "Cancelar", así que quien pulsara Enter creyendo que activaba el botón
+      // enfocado terminaba borrando el producto. El botón que tenga el foco ya
+      // responde a Enter por su cuenta, y hace lo correcto.
+      // Tab queda atrapado entre los dos botones: detrás del velo no hay nada
+      // que enfocar y salir del diálogo con el teclado lo dejaba inoperante.
+      const onKey = (e) => {
+        if (e.key === 'Escape') { cleanup(false); return; }
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          (document.activeElement === btnNo ? btnOk : btnNo).focus();
+        }
+      };
+
+      btnOk.addEventListener('click', onOk);
+      btnNo.addEventListener('click', onNo);
+      overlay.addEventListener('click', onBgClick);
+      document.addEventListener('keydown', onKey);
+      overlay.classList.add('show');
+      // Pone el foco en cancelar por defecto (más seguro)
+      setTimeout(() => btnNo.focus(), 50);
+    } catch (err) {
       _confirmBusy = false;
-      resolve(val);
-    };
-    const onOk = () => cleanup(true);
-    const onNo = () => cleanup(false);
-    const onBgClick = (e) => { if (e.target === overlay) cleanup(false); };
-    // Escape cancela. Enter NO confirma a propósito: el foco arranca en
-    // "Cancelar", así que quien pulsara Enter creyendo que activaba el botón
-    // enfocado terminaba borrando el producto. El botón que tenga el foco ya
-    // responde a Enter por su cuenta, y hace lo correcto.
-    const onKey = (e) => {
-      if (e.key === 'Escape') cleanup(false);
-    };
-
-    btnOk.addEventListener('click', onOk);
-    btnNo.addEventListener('click', onNo);
-    overlay.addEventListener('click', onBgClick);
-    document.addEventListener('keydown', onKey);
-    overlay.classList.add('show');
-    // Pone el foco en cancelar por defecto (más seguro)
-    setTimeout(() => btnNo.focus(), 50);
+      resolve(false);
+    }
   });
 }
 
@@ -2111,6 +2317,12 @@ function confirmDialog({ icon = '⚠️', title = '¿Confirmar?', message = '', 
 // muestra el banner #update-banner para que la usuaria recargue.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    // Con quién llegó la página: si ya la controlaba un SW, un controllerchange
+    // significa "versión nueva activada" y recargar es lo correcto. En la
+    // primera visita el controller pasa de null al SW recién instalado
+    // (clients.claim) y recargar ahí botaría a la usuaria a mitad de uso.
+    const teniaController = !!navigator.serviceWorker.controller;
+
     navigator.serviceWorker.register('./sw.js').then(reg => {
       const showUpdateBanner = () => {
         const banner = document.getElementById('update-banner');
@@ -2128,18 +2340,37 @@ if ('serviceWorker' in navigator) {
       });
       const btn = document.getElementById('update-reload');
       if (btn) btn.addEventListener('click', () => {
+        // El SW en espera activa la versión nueva y el controllerchange de más
+        // abajo recarga. Si por lo que sea ya no hay SW esperando (otra pestaña
+        // lo activó), recargar directo cumple igual la promesa del botón.
         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        else window.location.reload();
       });
     }).catch(() => {/* opcional, no es bloqueante */});
 
     // Cuando el SW nuevo toma control, recargar para servir la versión nueva.
     let reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (reloading) return;
+      if (!teniaController || reloading) return;
       reloading = true;
       window.location.reload();
     });
   });
 }
 // BUILD-PORTABLE-STRIP-END
+
+// ===================================================
+// ARRANQUE
+// ===================================================
+// Al final a propósito: todo lo declarado con let/const ya está evaluado y
+// ninguna función puede pisar una zona muerta temporal (ver nota en INIT).
+(function init() {
+  S.products = loadProducts();
+  S.rate     = loadRate();
+  S.fixed    = loadFixed();
+  renderHome();
+  renderProducts();
+  initWelcome();
+  setupInstallPrompt();
+})();
 

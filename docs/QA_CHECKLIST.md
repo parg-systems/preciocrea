@@ -25,7 +25,7 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 - [ ] En la calculadora, el logotipo y la barra de progreso **caben en la misma fila** también a 320px.
 - [ ] Escribir el nombre de la marca, cambiar de pestaña y volver a "Tu marca": **lo escrito sigue ahí**.
 - [ ] Al abrir cualquier sheet (calculadora, resultados, detalle, respaldo, guía, estudio) **desaparecen encabezado, píldora de aniversario y barra inferior**.
-- [ ] Cada ← vuelve donde corresponde: detalle → Productos, respaldo y guía → Calcular, estudio → Publicar.
+- [ ] Cada ← vuelve donde corresponde: detalle → Productos, estudio → Publicar. Respaldo y guía vuelven **a donde se abrieron**: desde «Tu marca» → Tu marca, desde el encabezado o los pilares → la pestaña donde se estaba.
 - [ ] La barra inferior **nunca tapa** el último bloque de ninguna pestaña, ni el toast ni el banner de nueva versión.
 - [ ] En iPhone con barra de gestos, la barra de pestañas respeta el área segura (no queda pegada al borde).
 
@@ -111,7 +111,9 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 - [ ] Materiales sin costo positivo: no permite avanzar.
 - [ ] Horas o valor hora en 0: no permite avanzar.
 - [ ] Escribir un valor enorme (ej. 999999999999999): el cálculo se capea, no muestra `NaN` ni infinitos.
-- [ ] Pegar caracteres no numéricos en un input numérico: el navegador los descarta o `sanitizeNum` los normaliza a 0.
+- [ ] Pegar caracteres no numéricos en un input numérico: `parseMonto`/`parseHoras` los normalizan a 0.
+- [ ] **Escritura a la chilena.** «12.000» en un material vale $12.000 (no $12) y «2,5» horas avanza y calcula 2,5 (no bloquea con "mayor a 0").
+- [ ] Escribir 24 en «horas por día» del asistente: el campo se corrige a 16 y la fórmula usa 16.
 
 ## Compartir y duplicar
 
@@ -152,6 +154,7 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 - [ ] Con la marca ya guardada y sin intención pendiente, "Guardar mi marca" lleva a la pestaña **Publicar**.
 - [ ] La tarjeta de marca del hub de Publicar refleja el nombre y el @ guardados; sin marca dice "Configura tu marca".
 - [ ] **Las cuatro miniaturas del hub se ven distintas entre sí** y cada una corresponde a su estilo: Tarjeta (tarjeta blanca flotando), Bloque (bloque de color abajo), Círculo (círculo centrado), Pantalla completa (fondo pleno oscuro).
+- [ ] **Tocar una miniatura abre el editor en ESE estilo** (elegir producto y comprobar que la plantilla activa es la tocada, no siempre «Tarjeta»). Volver al hub y entrar con el 📸 de un producto: vuelve al estilo por defecto.
 - [ ] Las miniaturas usan **el color de la marca** y el primer producto guardado. Cambiar el color en *Tu marca* y volver a Publicar: se repintan con el color nuevo.
 - [ ] Sin ningún producto guardado, las miniaturas se dibujan igual (producto de muestra), no salen en blanco.
 - [ ] Escribir el @ como `@@Telar/De.Luna!` guarda `TelarDe.Luna` — se descartan arrobas y caracteres inválidos.
@@ -207,7 +210,7 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 
 - [ ] Pie de la pestaña Calcular: "Creada con amor por **viviLoaiza.cl**…", **"Queda prohibida su venta o distribución comercial."**, el distintivo **© viviLoaiza.cl** y el aviso de marcas registradas (Spotify, WhatsApp, Android, Apple). Los cuatro deben estar.
 - [ ] Vista de Ayuda: al final aparece el bloque "Sobre la creadora" con los dos enlaces (sitio + Instagram), ambos abren en pestaña nueva.
-- [ ] Justo debajo, la línea de versión dice **«Versión 2.0.0 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**.
+- [ ] Justo debajo, la línea de versión dice **«Versión 2.0.1 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**.
 - [ ] IVA siempre activado: en la lista de productos, detalle, resultados y WhatsApp se ve el precio con IVA sin opción de ocultarlo.
 
 ## PWA

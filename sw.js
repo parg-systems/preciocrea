@@ -12,8 +12,8 @@
 // estaba publicado y nadie lo veía.
 //
 // Regla: si tocas index.html, css/ o js/, sube BUILD. Siempre.
-const VERSION = '2.0.0';
-const BUILD   = 4;
+const VERSION = '2.0.1';
+const BUILD   = 5;
 const CACHE = `preciocrea-${VERSION}-b${BUILD}`;
 const ASSETS = [
   './',
@@ -40,6 +40,11 @@ const ASSETS = [
 const NUCLEO = ASSETS.slice(0, 6);
 const EXTRAS = ASSETS.slice(6);
 
+// Sin skipWaiting() aquí: el SW nuevo queda en `waiting` hasta que la creadora
+// pulse "Recargar" en el banner (mensaje SKIP_WAITING, abajo). Activarse solo
+// durante el install disparaba clients.claim → controllerchange → recarga
+// automática de la página encima de quien estaba a mitad de un cálculo, y de
+// paso el banner nunca llegaba a verse: reg.waiting era siempre null.
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
@@ -47,7 +52,6 @@ self.addEventListener('install', e => {
         await c.addAll(NUCLEO);
         await Promise.allSettled(EXTRAS.map(a => c.add(a)));
       })
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -83,18 +87,26 @@ self.addEventListener('fetch', e => {
   const guardar = resp => {
     if (resp && resp.ok) {
       const copy = resp.clone();
-      caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+      // waitUntil: sin él, el navegador puede dormir el SW antes de que el
+      // put() termine y el recurso se cachea "a veces".
+      e.waitUntil(caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {}));
     }
     return resp;
   };
 
-  // Última línea de defensa: sin red NI caché, una página honesta en vez del
-  // error del navegador. caches.match puede resolver a undefined (instalación
-  // a medias, caché desalojada por el sistema operativo), y respondWith con
-  // undefined es un fallo de red, no una respuesta.
+  // Siempre contra la caché propia. caches.match() global recorre TODAS las
+  // cachés del origen empezando por la más antigua: si un delete falló o el
+  // dominio aloja otra cosa, ganaría una copia vieja y el bump de BUILD no
+  // serviría de nada.
+  const enCache = r => caches.open(CACHE).then(c => c.match(r));
+
+  // Última línea de defensa para NAVEGACIONES: sin red NI caché, una página
+  // honesta en vez del error del navegador. Solo para documentos — devolverle
+  // este HTML a un .js o .css fallido es un error de sintaxis y pantalla en
+  // blanco, peor que el fallo de red que reemplaza.
   const ultimoRecurso = async () => (
-    await caches.match('./index.html') ||
-    await caches.match('./') ||
+    await enCache('./index.html') ||
+    await enCache('./') ||
     new Response(
       '<!doctype html><html lang="es"><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1">' +
@@ -108,13 +120,23 @@ self.addEventListener('fetch', e => {
   );
 
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).then(guardar).catch(ultimoRecurso));
+    // Red primero, pero sin fe ciega: una respuesta rota del hosting (404/500
+    // de un deploy a medias) o una conexión que responde y no avanza no deben
+    // taparle la app a quien la tiene entera en caché.
+    const red = fetch(req).then(resp => {
+      if (!resp || !resp.ok) throw new Error('respuesta no válida');
+      return guardar(resp);
+    });
+    const tope = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 4000)
+    );
+    e.respondWith(Promise.race([red, tope]).catch(ultimoRecurso));
     return;
   }
 
   e.respondWith(
-    caches.match(req).then(cached =>
-      cached || fetch(req).then(guardar).catch(ultimoRecurso)
+    enCache(req).then(cached =>
+      cached || fetch(req).then(guardar).catch(() => Response.error())
     )
   );
 });

@@ -131,21 +131,51 @@ function studioLoadBrand() {
 // ¿Hay algo escrito o elegido en el formulario que no se haya guardado?
 // El color, el modo de precio y el logo mutan STUDIO.brand en el acto (para
 // que la vista previa reaccione), así que no basta con mirar los inputs: se
-// compara el estado completo contra la última versión persistida.
+// compara el estado completo contra la última versión persistida. La
+// comparación se hace sobre una COPIA: una función de consulta no puede tener
+// el efecto secundario de aplicar los cambios que está evaluando.
 function studioBrandDirty() {
   if (!STUDIO._brandSaved) return false;
-  captureBrandForm();
-  return JSON.stringify(STUDIO.brand) !== STUDIO._brandSaved;
+  const n = document.getElementById('brand-name');
+  const h = document.getElementById('brand-handle');
+  const c = document.getElementById('brand-credit');
+  const candidato = { ...STUDIO.brand };
+  if (n) candidato.name   = n.value.trim().slice(0, MAX_BRAND_NAME);
+  if (h) candidato.handle = h.value.replace(/^@+/, '').replace(/[^A-Za-z0-9._]/g, '').slice(0, MAX_BRAND_HANDLE);
+  if (c) candidato.credit = c.checked;
+  return JSON.stringify(candidato) !== STUDIO._brandSaved;
 }
 
 // Nunca devuelve null: si aún no se configuró, entrega los valores por defecto.
+// OJO: esto es el BORRADOR (incluye lo tecleado sin guardar, para que el
+// formulario y su vista previa reaccionen). Todo lo que publica, exporta o
+// decide debe usar studioBrandPersisted().
 function studioBrandOrDefault() {
   return STUDIO.brand || studioLoadBrand();
 }
 
-// ¿La creadora ya configuró su marca? Basta con el nombre.
+// La marca tal como está GUARDADA. Las publicaciones, los respaldos y las
+// guardas ("¿ya configuró su marca?") salen de aquí: lo tecleado sin pulsar
+// "Guardar mi marca" es un borrador que no debe filtrarse a ninguna imagen ni
+// archivo. Con caché, porque el canvas la consulta en cada repintado y el
+// logo en base64 puede pesar bastante para re-parsearlo por slot.
+let _brandPersistedCache = null;
+function studioBrandPersisted() {
+  studioBrandOrDefault();           // garantiza que _brandSaved esté cargado
+  if (_brandPersistedCache && _brandPersistedCache.json === STUDIO._brandSaved) {
+    return _brandPersistedCache.value;
+  }
+  let value = null;
+  try { value = studioSanitizeBrand(JSON.parse(STUDIO._brandSaved)); } catch(e) {}
+  if (!value) value = { ...STUDIO_BRAND_DEFAULT };
+  _brandPersistedCache = { json: STUDIO._brandSaved, value };
+  return value;
+}
+
+// ¿La creadora ya configuró su marca? Basta con el nombre — el GUARDADO:
+// un nombre a medio escribir en el formulario no habilita el Estudio.
 function studioHasBrand() {
-  return !!studioBrandOrDefault().name;
+  return !!studioBrandPersisted().name;
 }
 
 // Persiste el perfil. Mismo patrón defensivo que persistProducts().
@@ -183,6 +213,10 @@ const STUDIO_DEMO_PRODUCT = {
 };
 
 function renderStudioHub() {
+  // Volver al hub descarta cualquier estilo elegido en una visita anterior al
+  // selector: si quedara vivo, un 📸 desde la lista de productos abriría el
+  // editor con un estilo que la creadora no pidió.
+  STUDIO._pickTpl = null;
   renderHubBrandCard();
   renderHubStyles();
   // Las métricas de measureText cambian cuando termina de cargar la tipografía
@@ -196,7 +230,7 @@ function renderHubBrandCard() {
   const sub   = document.getElementById('hub-brand-sub');
   if (!title || !sub) return;
 
-  const b = studioBrandOrDefault();
+  const b = studioBrandPersisted();
   if (b.name) {
     title.textContent = 'Tu marca está configurada';
     sub.textContent   = b.handle ? `${b.name} · @${b.handle}` : b.name;
@@ -217,13 +251,13 @@ function renderHubStyles() {
 
   const f     = STUDIO_FORMATS.historia;
   const tpls  = studioTemplatesFor('historia');
-  const b     = studioBrandOrDefault();
+  const b     = studioBrandPersisted();
   const pal   = studioPalette(b.accent);
   // Con productos guardados se muestra el primero: la creadora reconoce lo suyo.
   const slide = studioProductSlide(S.products[0] || STUDIO_DEMO_PRODUCT, b.priceMode);
 
   strip.innerHTML = tpls.map(t => `
-    <button type="button" class="style-thumb" onclick="openStudioPicker()" title="${esc(t.desc)}">
+    <button type="button" class="style-thumb" onclick="openStudioPicker('${t.id}')" title="${esc(t.desc)}">
       <canvas class="stt-canvas" data-tpl="${t.id}" aria-label="Estilo ${esc(t.name)}"></canvas>
       <span class="stt-name">${esc(t.name)}</span>
     </button>`).join('');
@@ -256,11 +290,11 @@ function renderBrandForm() {
     </button>`).join('');
 
   document.getElementById('brand-body').innerHTML = `
-    <div class="field-label">Nombre de tu marca</div>
+    <label class="field-label" for="brand-name">Nombre de tu marca</label>
     <input class="field-input" type="text" id="brand-name" maxlength="${MAX_BRAND_NAME}"
            placeholder="Ej: Telar de Luna" value="${esc(b.name)}" oninput="previewBrand()">
 
-    <div class="field-label" style="margin-top:16px">Tu Instagram</div>
+    <label class="field-label" style="margin-top:16px" for="brand-handle">Tu Instagram</label>
     <div class="brand-handle-wrap">
       <span class="brand-handle-at">@</span>
       <input class="field-input brand-handle-input" type="text" id="brand-handle"
@@ -328,6 +362,22 @@ function setBrandPriceMode(mode) {
 
 // Vista previa en vivo: por ahora una tarjeta HTML teñida con el acento.
 // En la fase 1 se reemplaza por un canvas con la plantilla real.
+
+// El texto de la tarjeta es blanco fijo, así que el bloque de color se
+// oscurece lo necesario para que se lea — igual que hace el motor del canvas
+// con sus fondos. Con el mostaza o el verde del propio catálogo, el nombre
+// desaparecía (1,9:1). El acento elegido no se toca: solo el fondo derivado.
+function studioBgParaBlanco(hex, min = 4.5) {
+  let { h, s, l } = studioHexToHsl(hex);
+  let out = hex;
+  for (let i = 0; i < 30 && studioContrast(out, '#FFFFFF') < min; i++) {
+    l = Math.max(0, l - 0.03);
+    out = studioHslToHex(h, s, l);
+    if (l <= 0) break;
+  }
+  return out;
+}
+
 function previewBrand() {
   const prev = document.getElementById('brand-preview');
   if (!prev) return;
@@ -335,8 +385,9 @@ function previewBrand() {
   const handle = (document.getElementById('brand-handle')?.value || '')
                    .replace(/^@+/, '').replace(/[^A-Za-z0-9._]/g, '');
   const accent = STUDIO.brand.accent;
+  const fondo  = studioBgParaBlanco(accent);
 
-  prev.style.background = `linear-gradient(160deg, ${accent}22 0%, ${accent} 65%, ${accent} 100%)`;
+  prev.style.background = `linear-gradient(160deg, ${accent}22 0%, ${fondo} 65%, ${fondo} 100%)`;
   prev.querySelector('.brand-prev-name').textContent   = name || 'Tu marca';
   prev.querySelector('.brand-prev-handle').textContent = handle ? '@' + handle : '@tu_instagram';
 }
@@ -1064,10 +1115,10 @@ function studioColor(token, pal) {
 // ===================================================
 // STUDIO — TIPOGRAFÍA
 // ===================================================
-// Fraunces y Nunito vienen de Google Fonts por CDN, y el Service Worker no
-// cachea otros orígenes: sin conexión pueden no estar. El canvas es más
-// frágil que el DOM porque ctx.font no dispara la carga y hace fallback
-// silencioso. La defensa es doble:
+// Fraunces y Nunito se sirven locales desde assets/fonts/ y van precacheadas
+// por el Service Worker, pero aun así pueden no estar (portable sin conexión,
+// caché desalojada). El canvas es más frágil que el DOM porque ctx.font no
+// dispara la carga y hace fallback silencioso. La defensa es doble:
 //   1. preview y export usan SIEMPRE la misma cadena de fuentes completa, así
 //      que si cae al respaldo lo hacen los dos igual y siguen coincidiendo;
 //   2. avisamos a la creadora en vez de sorprenderla con otra tipografía.
@@ -1559,9 +1610,10 @@ function setStudioZoom(value) {
   studioRequestPreview();
 }
 
-// Arrastre y pellizco sobre el canvas para encuadrar la foto. El viewport ya
-// declara user-scalable=no, así que el pellizco propio no compite con el zoom
-// del navegador.
+// Arrastre y pellizco sobre el canvas para encuadrar la foto. El viewport NO
+// bloquea el zoom del navegador (a propósito: pellizcar para ampliar es
+// accesibilidad básica); el gesto propio no compite con él porque el canvas
+// declara touch-action:none en el CSS.
 function studioAttachGestures(canvasEl) {
   const pts = new Map();
   let start = null;
@@ -1658,9 +1710,10 @@ function studioDrawLogo(ctx, slot, W, H) {
   ctx.restore();
 }
 
-// Traduce el rol de un slot al texto que le corresponde.
+// Traduce el rol de un slot al texto que le corresponde. La marca sale de la
+// versión GUARDADA: lo tecleado sin guardar no debe aparecer en una imagen.
 function studioSlotText(role, slide) {
-  const b = studioBrandOrDefault();
+  const b = studioBrandPersisted();
   switch (role) {
     // No es texto, pero permite que otros slots se oculten con hideWith:'logo'
     case 'logo': return b.logo || '';
@@ -1707,7 +1760,7 @@ function openStudio(format, productId) {
   const product = S.products.find(p => p.id === productId);
   if (!product) { toast('⚠️ No se encontró el producto'); return; }
 
-  const b = studioBrandOrDefault();
+  const b = studioBrandPersisted();
   STUDIO.piece = studioNewPiece(format, [studioProductSlide(product, b.priceMode)]);
   studioOpenEditor();
 }
@@ -1726,11 +1779,19 @@ function studioProductSlide(product, priceMode) {
 }
 
 function studioNewPiece(format, slides) {
+  const tpls = studioTemplatesFor(format);
+  // Si la creadora entró tocando una miniatura de estilo, se respeta esa
+  // elección; si no, la primera plantilla. El valor se consume aquí para que
+  // no contamine la siguiente publicación.
+  const elegido = STUDIO._pickTpl && tpls.some(t => t.id === STUDIO._pickTpl)
+    ? STUDIO._pickTpl
+    : tpls[0].id;
+  STUDIO._pickTpl = null;
   return {
     format,
-    templateId: studioTemplatesFor(format)[0].id,
-    priceMode: studioBrandOrDefault().priceMode,
-    accent: studioBrandOrDefault().accent,   // punto de partida, editable aquí
+    templateId: elegido,
+    priceMode: studioBrandPersisted().priceMode,
+    accent: studioBrandPersisted().accent,   // punto de partida, editable aquí
     active: 0,
     slides
   };
@@ -1754,13 +1815,21 @@ function studioReady(retry) {
     toast('🎨 Primero configura tu marca');
     return false;
   }
-  if (!S.products.length) { toast('⚠️ Aún no tienes productos guardados'); return false; }
+  if (!S.products.length) {
+    // Sin productos, el Estudio es un callejón sin salida: en vez de dejar a la
+    // creadora frente a un aviso, se la lleva a donde puede resolverlo.
+    toast('🌱 Primero calcula y guarda un producto: aquí lo publicas después');
+    showView('view-home');
+    return false;
+  }
   return true;
 }
 
-// Historia: se elige UN producto y se entra directo al editor.
-function openStudioPicker() {
-  if (!studioReady(openStudioPicker)) return;
+// Historia: se elige UN producto y se entra directo al editor. `tplId` llega
+// desde las miniaturas de estilo del hub: la que se tocó es la que se abre.
+function openStudioPicker(tplId) {
+  if (!studioReady(() => openStudioPicker(tplId))) return;
+  STUDIO._pickTpl  = tplId || null;
   STUDIO._pickMode = 'historia';
   STUDIO._pick = [];
   renderStudioPick();
@@ -1770,6 +1839,7 @@ function openStudioPicker() {
 // Catálogo: se eligen VARIOS y su orden.
 function openCatalogo() {
   if (!studioReady(openCatalogo)) return;
+  STUDIO._pickTpl  = null;
   STUDIO._pickMode = 'catalogo';
   STUDIO._pick = [];
   renderStudioPick();
@@ -1779,7 +1849,7 @@ function openCatalogo() {
 function renderStudioPick() {
   const multi = STUDIO._pickMode === 'catalogo';
   const sel = STUDIO._pick;
-  const b = studioBrandOrDefault();
+  const b = studioBrandPersisted();
 
   document.getElementById('studio-pick-title').textContent =
     multi ? 'Tu catálogo' : 'Elige un producto';
@@ -1787,7 +1857,8 @@ function renderStudioPick() {
   const cards = S.products.map(p => {
     const i = sel.indexOf(p.id);
     return `
-      <div class="pick-card${i >= 0 ? ' sel' : ''}" onclick="toggleStudioPick(${p.id})">
+      <div class="pick-card${i >= 0 ? ' sel' : ''}" onclick="toggleStudioPick(${p.id})"
+           role="button" tabindex="0" aria-pressed="${i >= 0}" aria-label="${multi ? 'Elegir' : 'Publicar'} ${esc(p.name)}">
         ${multi ? `<div class="pick-check">${i >= 0 ? (i + 1) : ''}</div>` : ''}
         <div class="pc-emoji">${p.emoji ? esc(p.emoji) : '🎨'}</div>
         <div class="pc-info">
@@ -1872,7 +1943,7 @@ function startCatalogo() {
   const sel = STUDIO._pick;
   if (!sel.length) { toast('⚠️ Elige al menos un producto'); return; }
 
-  const b = studioBrandOrDefault();
+  const b = studioBrandPersisted();
   const cover = {
     kind: 'cover',
     eyebrow: 'Catálogo',
@@ -1979,6 +2050,10 @@ function studioDispose() {
     });
   }
   STUDIO.piece = null;
+  // Vaciar el marcado del editor: si quedara vivo, sus chips e inputs seguirían
+  // siendo alcanzables por los querySelectorAll globales de otras pantallas.
+  const body = document.getElementById('studio-edit-body');
+  if (body) body.innerHTML = '';
   showView('view-studio-hub');
 }
 
@@ -2064,14 +2139,15 @@ function renderStudioFields() {
   if (!box) return;
   const p = STUDIO.piece;
   const slide = studioActiveSlide();
+  if (!slide) return;
 
   if (slide.kind === 'cover') {
     box.innerHTML = `
-      <div class="field-label">Título de la portada</div>
+      <label class="field-label" for="studio-headline">Título de la portada</label>
       <input class="field-input" type="text" id="studio-headline" maxlength="60"
              value="${esc(slide.headline || '')}" oninput="setStudioField('headline',this.value,60)">
 
-      <div class="field-label" style="margin-top:16px">Bajada</div>
+      <label class="field-label" style="margin-top:16px" for="studio-subhead">Bajada</label>
       <input class="field-input" type="text" id="studio-subhead" maxlength="90"
              value="${esc(slide.subhead || '')}" oninput="setStudioField('subhead',this.value,90)">`;
     return;
@@ -2084,11 +2160,11 @@ function renderStudioFields() {
     </button>`).join('');
 
   box.innerHTML = `
-    <div class="field-label">Nombre en la publicación</div>
+    <label class="field-label" for="studio-name">Nombre en la publicación</label>
     <input class="field-input" type="text" id="studio-name" maxlength="${MAX_NAME_LEN}"
            value="${esc(slide.name || '')}" oninput="setStudioName(this.value)">
 
-    <div class="field-label" style="margin-top:16px">Descripción</div>
+    <label class="field-label" style="margin-top:16px" for="studio-desc">Descripción</label>
     <textarea class="field-input field-textarea" id="studio-desc" rows="2" maxlength="${MAX_DESC_LEN}"
               placeholder="Una frase corta sobre tu producto"
               oninput="setStudioField('desc',this.value,${MAX_DESC_LEN})">${esc(slide.desc || '')}</textarea>
@@ -2105,7 +2181,7 @@ function renderStudioAccent() {
   const box = document.getElementById('studio-accent');
   if (!box) return;
   const actual = studioAccent();
-  const deMarca = studioBrandOrDefault().accent;
+  const deMarca = studioBrandPersisted().accent;
 
   const swatches = STUDIO_ACCENTS.map(hex => `
     <button type="button" class="brand-swatch${actual === hex ? ' sel' : ''}"
@@ -2128,9 +2204,9 @@ function renderStudioAccent() {
     </div>`;
 }
 
-// Acento efectivo: el de la pieza si se cambió, si no el de la marca.
+// Acento efectivo: el de la pieza si se cambió, si no el de la marca guardada.
 function studioAccent() {
-  return (STUDIO.piece && STUDIO.piece.accent) || studioBrandOrDefault().accent;
+  return (STUDIO.piece && STUDIO.piece.accent) || studioBrandPersisted().accent;
 }
 
 function setStudioAccent(hex) {
@@ -2349,7 +2425,7 @@ function studioDownload(blob, filename) {
 // orden en que se suben a Instagram es el orden en que se ven.
 function studioFileName(index) {
   const p = STUDIO.piece;
-  const marca = studioSlug(studioBrandOrDefault().name);
+  const marca = studioSlug(studioBrandPersisted().name);
   const slide = p.slides[index];
   if (!STUDIO_FORMATS[p.format].multi) return `${marca}-${studioSlug(slide.name)}.jpg`;
   return `${marca}-catalogo-${String(index + 1).padStart(2, '0')}.jpg`;
@@ -2407,7 +2483,7 @@ function studioPrimeShare() {
 }
 
 function studioShareText() {
-  const b = studioBrandOrDefault();
+  const b = studioBrandPersisted();
   const slide = studioActiveSlide();
   const partes = [];
   if (slide && slide.kind !== 'cover' && slide.name) partes.push(slide.name);

@@ -104,7 +104,7 @@
     </button>
     <span class="logo-badge">2.0</span>
     <div class="logo-actions">
-      <button class="btn-hdr" onclick="showView('view-backup')" title="Respaldo de datos" aria-label="Respaldo de datos">🛡️</button>
+      <button class="btn-hdr" onclick="openBackup()" title="Respaldo de datos" aria-label="Respaldo de datos">🛡️</button>
       <button class="btn-hdr btn-help" onclick="openHelp()" title="Guía de ayuda" aria-label="Guía de ayuda">?</button>
     </div>
   </header>
@@ -173,7 +173,7 @@
     </button>
 
     <!-- Recordatorio de respaldo -->
-    <button type="button" class="backup-reminder" id="backup-reminder" onclick="showView('view-backup')">
+    <button type="button" class="backup-reminder" id="backup-reminder" onclick="openBackup()">
       <span class="bk-rem-icon">🛡️</span>
       <span class="bk-rem-text">Tienes productos sin respaldar.</span>
       <span class="bk-rem-arrow">→</span>
@@ -252,7 +252,7 @@
     <div class="search-box" id="search-box" style="display:none">
       <span class="search-ico">🔍</span>
       <input type="search" class="search-input" id="inp-search" placeholder="Buscar un producto"
-             autocomplete="off" maxlength="60" oninput="filterProducts(this.value)">
+             aria-label="Buscar un producto" autocomplete="off" maxlength="60" oninput="filterProducts(this.value)">
       <button type="button" class="search-clear" id="search-clear" onclick="clearSearch()" aria-label="Limpiar búsqueda" hidden>✕</button>
     </div>
 
@@ -370,7 +370,7 @@
           </span>
           <span class="sr-arrow">→</span>
         </button>
-        <button type="button" class="settings-row" onclick="showView('view-backup')">
+        <button type="button" class="settings-row" onclick="openBackup()">
           <span class="sr-ico" style="background:var(--green-light)">🛡️</span>
           <span class="sr-text">
             <span class="sr-title">Respaldo de datos</span>
@@ -378,7 +378,7 @@
           </span>
           <span class="sr-arrow">→</span>
         </button>
-        <button type="button" class="settings-row" onclick="showView('view-help')">
+        <button type="button" class="settings-row" onclick="openHelp()">
           <span class="sr-ico" style="background:var(--yellow-light)">📖</span>
           <span class="sr-text">
             <span class="sr-title">Guía de PrecioCrea</span>
@@ -416,10 +416,10 @@
       <p class="step-desc">Todo lo que tiene costo: materia prima, insumos, packaging y etiquetas.</p>
 
       <div class="field-group">
-        <div class="field-label">
+        <label class="field-label" for="inp-name">
           Nombre del producto
-          <button class="tip-btn" style="background:var(--coral-deep)" onclick="toggleTip('t-name')">?</button>
-        </div>
+          <button class="tip-btn" style="background:var(--coral-deep)" onclick="toggleTip('t-name')" aria-label="Ayuda sobre el nombre del producto">?</button>
+        </label>
         <div class="tip-box" id="t-name">Dale un nombre a tu creación para identificarla en tu lista. <em>Ej: "Jabón de lavanda 100g"</em> 🏷️</div>
         <div class="name-with-icon">
           <button type="button" class="icon-picker-btn" id="inp-emoji-btn"
@@ -432,10 +432,10 @@
       </div>
 
       <div class="field-group">
-        <div class="field-label">
+        <label class="field-label" for="inp-desc">
           Descripción <span class="field-tag">va en tu publicación</span>
-          <button class="tip-btn" style="background:var(--coral-deep)" onclick="toggleTip('t-desc')">?</button>
-        </div>
+          <button class="tip-btn" style="background:var(--coral-deep)" onclick="toggleTip('t-desc')" aria-label="Ayuda sobre la descripción">?</button>
+        </label>
         <div class="tip-box" id="t-desc">Una frase corta que cuente qué hace especial a tu producto. <strong>Es la que aparecerá en tus publicaciones</strong>. <em>Ej: "Hecho a mano con lavanda de Colchagua"</em> ✨</div>
         <textarea class="field-input field-textarea" id="inp-desc" rows="2" maxlength="160"
                   placeholder="ej: Hecho a mano con lavanda de Colchagua" style="--step-accent:var(--coral-deep)"></textarea>
@@ -444,7 +444,7 @@
       <div class="field-group">
         <div class="field-label">
           Materiales
-          <button class="tip-btn" style="background:var(--coral-deep)" onclick="toggleTip('t-mat')">?</button>
+          <button class="tip-btn" style="background:var(--coral-deep)" onclick="toggleTip('t-mat')" aria-label="Ayuda sobre los materiales">?</button>
         </div>
         <div class="tip-box" id="t-mat">
           Incluye <strong>todo lo que tiene costo</strong>: materia prima, insumos de proceso (guantes, moldes desechables), packaging y etiquetas.<br><br>
@@ -452,9 +452,9 @@
         </div>
         <div class="materials-list" id="mat-list">
           <div class="mat-row">
-            <input class="field-input mat-name" type="text" placeholder="ej: Aceite de coco" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)">
-            <input class="field-input mat-cost" type="number" placeholder="$" min="0" max="99999999" inputmode="numeric" oninput="calcMatTotal()" style="--step-accent:var(--coral-deep)">
-            <button class="btn-rem" onclick="remMat(this)">✕</button>
+            <input class="field-input mat-name" type="text" placeholder="ej: Aceite de coco" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)" aria-label="Nombre del material">
+            <input class="field-input mat-cost" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" oninput="calcMatTotal()" style="--step-accent:var(--coral-deep)" aria-label="Costo del material">
+            <button class="btn-rem" onclick="remMat(this)" aria-label="Quitar material">✕</button>
           </div>
         </div>
         <button class="btn-add-mat" onclick="addMat()">＋ Agregar material</button>
@@ -476,21 +476,21 @@
       <p class="step-desc">Tu tiempo es el recurso más valioso que tienes. Aquí lo convertimos en un número justo.</p>
 
       <div class="field-group">
-        <div class="field-label">
+        <label class="field-label" for="inp-hours">
           Horas trabajadas
-          <button class="tip-btn" style="background:var(--blue-deep)" onclick="toggleTip('t-hours')">?</button>
-        </div>
+          <button class="tip-btn" style="background:var(--blue-deep)" onclick="toggleTip('t-hours')" aria-label="Ayuda sobre las horas trabajadas">?</button>
+        </label>
         <div class="tip-box" id="t-hours">
-          Cuenta <strong>todo el tiempo</strong>: preparación, producción, empaquetado y control de calidad. Si tardas 30 min en preparar y 2 horas haciendo el producto, escribe <em>2.5</em>. ⏱️
+          Cuenta <strong>todo el tiempo</strong>: preparación, producción, empaquetado y control de calidad. Si tardas 30 min en preparar y 2 horas haciendo el producto, escribe <em>2,5</em>. ⏱️
         </div>
-        <input class="field-input" type="number" id="inp-hours" placeholder="ej: 2.5" min="0" max="9999" step="0.5" inputmode="decimal" oninput="updateLaborPreview()" style="--step-accent:var(--blue-deep)">
+        <input class="field-input" type="text" inputmode="decimal" id="inp-hours" placeholder="ej: 2,5" maxlength="7" autocomplete="off" oninput="updateLaborPreview()" style="--step-accent:var(--blue-deep)">
       </div>
 
       <div class="field-group">
-        <div class="field-label">
+        <label class="field-label" for="inp-rate">
           Valor de tu hora ($)
-          <button class="tip-btn" style="background:var(--blue-deep)" onclick="toggleTip('t-rate')">?</button>
-        </div>
+          <button class="tip-btn" style="background:var(--blue-deep)" onclick="toggleTip('t-rate')" aria-label="Ayuda sobre el valor de tu hora">?</button>
+        </label>
         <div class="tip-box" id="t-rate">
           <strong>¿Cómo calcularlo?</strong><br>
           Piensa cuánto necesitas ganar al mes. Divídelo entre las horas que de verdad puedes dedicarle.<br><br>
@@ -498,7 +498,7 @@
           <strong>Regla de oro:</strong> nunca cobres menos del sueldo mínimo por hora (~$2.750/hr en Chile). <em>¡Tú vales mucho más!</em> 💙<br><br>
           Si no sabes por dónde empezar, usa el asistente de aquí abajo. 🧮
         </div>
-        <input class="field-input" type="number" id="inp-rate" placeholder="ej: 8000" min="0" max="9999999" step="500" inputmode="numeric" oninput="updateLaborPreview()" style="--step-accent:var(--blue-deep)">
+        <input class="field-input" type="text" inputmode="numeric" id="inp-rate" placeholder="ej: 8000" maxlength="10" autocomplete="off" oninput="updateLaborPreview()" style="--step-accent:var(--blue-deep)">
 
         <!-- Aviso del valor hora guardado (solo si la creadora lo pidió) -->
         <button type="button" class="rate-saved" id="rate-saved" onclick="openRateWizard('view-calc')">
@@ -525,32 +525,32 @@
       <div class="step-title">El trabajo invisible</div>
       <p class="step-desc">El diseño, la originalidad y el esfuerzo mental también tienen un precio.</p>
 
-      <div class="field-label" style="margin-bottom:14px">
+      <div class="field-label" style="margin-bottom:14px" id="cr-grid-lbl">
         ¿Qué nivel de creatividad requirió?
-        <button class="tip-btn" style="background:var(--violet)" onclick="toggleTip('t-cr')">?</button>
+        <button class="tip-btn" style="background:var(--violet)" onclick="toggleTip('t-cr')" aria-label="Ayuda sobre la carga creativa">?</button>
       </div>
       <div class="tip-box" id="t-cr" style="margin-bottom:16px">
         Esto es el <strong>"trabajo invisible"</strong>: el tiempo que dedicaste a probar ideas fallidas, aprender técnicas, investigar tendencias y diseñar desde cero.<br><br>
         También incluye la <em>carga mental</em>: coordinar proveedores, responder mensajes a deshora, mantener la inspiración bajo presión. <strong>¡Todo eso tiene un precio!</strong> 🧠✨
       </div>
 
-      <div class="creativity-grid" id="cr-grid">
-        <div class="cr-option sel" data-val="facil" onclick="selCr(this)">
+      <div class="creativity-grid" id="cr-grid" role="group" aria-labelledby="cr-grid-lbl">
+        <div class="cr-option sel" data-val="facil" onclick="selCr(this)" role="button" tabindex="0" aria-pressed="true">
           <div class="cr-emoji">😊</div>
           <div class="cr-name">Fácil</div>
           <div class="cr-pct">+5%</div>
         </div>
-        <div class="cr-option" data-val="moderado" onclick="selCr(this)">
+        <div class="cr-option" data-val="moderado" onclick="selCr(this)" role="button" tabindex="0" aria-pressed="false">
           <div class="cr-emoji">🤔</div>
           <div class="cr-name">Moderado</div>
           <div class="cr-pct">+15%</div>
         </div>
-        <div class="cr-option" data-val="intenso" onclick="selCr(this)">
+        <div class="cr-option" data-val="intenso" onclick="selCr(this)" role="button" tabindex="0" aria-pressed="false">
           <div class="cr-emoji">🔥</div>
           <div class="cr-name">Intenso</div>
           <div class="cr-pct">+25%</div>
         </div>
-        <div class="cr-option" data-val="obra" onclick="selCr(this)">
+        <div class="cr-option" data-val="obra" onclick="selCr(this)" role="button" tabindex="0" aria-pressed="false">
           <div class="cr-emoji">🏆</div>
           <div class="cr-name">Obra de Autor</div>
           <div class="cr-pct">+40%</div>
@@ -569,10 +569,10 @@
       <p class="step-desc">Lo que cuesta tener el negocio funcionando, aunque hoy no vendas nada.</p>
 
       <div class="field-group">
-        <div class="field-label">
+        <label class="field-label" for="inp-fixed">
           Gastos fijos mensuales ($)
-          <button class="tip-btn" style="background:var(--green-deep)" onclick="toggleTip('t-fixed')">?</button>
-        </div>
+          <button class="tip-btn" style="background:var(--green-deep)" onclick="toggleTip('t-fixed')" aria-label="Ayuda sobre los gastos fijos">?</button>
+        </label>
         <div class="tip-box" id="t-fixed">
           Suma todo lo que pagas mensualmente: <br>
           • Arriendo del taller o parte del arriendo de tu casa <br>
@@ -583,7 +583,7 @@
           <em>Tip: Si usas una habitación de tu casa, considera el 15-20% del arriendo. 🏠</em><br><br>
           Si no sabes por dónde empezar, usa el asistente de aquí abajo. 🧮
         </div>
-        <input class="field-input" type="number" id="inp-fixed" placeholder="ej: 80000" min="0" max="99999999" step="1000" inputmode="numeric" style="--step-accent:var(--green-deep)">
+        <input class="field-input" type="text" inputmode="numeric" id="inp-fixed" placeholder="ej: 80000" maxlength="10" autocomplete="off" style="--step-accent:var(--green-deep)">
 
         <!-- Aviso de los costos guardados (solo si la creadora lo pidió) -->
         <button type="button" class="rate-saved fixed-saved" id="fixed-saved" onclick="openFixedWizard('view-calc')">
@@ -596,14 +596,14 @@
       </div>
 
       <div class="field-group">
-        <div class="field-label">
+        <label class="field-label" for="inp-units">
           Unidades que produces al mes
-          <button class="tip-btn" style="background:var(--green-deep)" onclick="toggleTip('t-units')">?</button>
-        </div>
+          <button class="tip-btn" style="background:var(--green-deep)" onclick="toggleTip('t-units')" aria-label="Ayuda sobre las unidades mensuales">?</button>
+        </label>
         <div class="tip-box" id="t-units">
           Este número reparte tus gastos fijos entre todos tus productos. Si fabricas 20 jabones y 10 aros, escribe <em>30</em>. Así cada producto paga su parte justa del negocio. 📊
         </div>
-        <input class="field-input" type="number" id="inp-units" placeholder="ej: 30" min="1" max="100000" step="1" inputmode="numeric" value="20" style="--step-accent:var(--green-deep)">
+        <input class="field-input" type="text" inputmode="numeric" id="inp-units" placeholder="ej: 30" maxlength="6" autocomplete="off" value="20" style="--step-accent:var(--green-deep)">
       </div>
 
       <button class="btn-next" style="background:linear-gradient(135deg,#2FA355,var(--green-deep)); box-shadow:0 12px 28px rgba(35,130,60,0.3)" onclick="showResults()">
@@ -649,8 +649,8 @@
         <!-- Camino A: desglose de gastos del hogar -->
         <div id="rate-gastos">
           <div class="note-card note-card-blue">
-            <div class="note-hd">⚠️ Ojo con contar dos veces</div>
-            <div class="note-txt">Aquí van los gastos de <strong>tu casa</strong>, lo que necesitas para vivir. Los del negocio (publicidad, herramientas, y la parte de tu casa que ocupa el taller) van en el <strong>paso 4</strong>, que tiene su propio asistente. Si los pones en los dos sitios, los cobras dos veces.</div>
+            <div class="note-hd">💡 Aquí y en el paso 4 miden cosas distintas</div>
+            <div class="note-txt">Aquí van los gastos de <strong>tu casa completos</strong>: sirven para fijar tu <strong>sueldo objetivo</strong>, lo que necesitas para vivir. Los gastos del <strong>negocio</strong> (publicidad, herramientas, y la <em>fracción</em> de tu casa que ocupa el taller) van en el <strong>paso 4</strong>, que tiene su propio asistente. El arriendo puede aparecer en los dos, con porcentajes distintos, porque responde dos preguntas diferentes: cuánto necesitas ganar y cuánto cuesta producir.</div>
           </div>
 
           <div class="rate-rows" id="rate-rows"></div>
@@ -671,9 +671,9 @@
 
         <!-- Camino B: monto directo -->
         <div id="rate-directo" hidden>
-          <div class="field-label">Tu sueldo mensual objetivo</div>
-          <input class="field-input" type="number" id="rate-meta-directa" min="0" max="99999999" step="10000"
-                 inputmode="numeric" placeholder="ej: 600000" oninput="rateRecalc()" style="--step-accent:var(--blue-deep)">
+          <label class="field-label" for="rate-meta-directa">Tu sueldo mensual objetivo</label>
+          <input class="field-input" type="text" inputmode="numeric" id="rate-meta-directa" maxlength="10"
+                 autocomplete="off" placeholder="ej: 600000" oninput="rateRecalc()" style="--step-accent:var(--blue-deep)">
           <div class="field-hint">Lo que quieres que te deje el emprendimiento cada mes, ya descontados los gastos del negocio.</div>
         </div>
 
@@ -696,9 +696,9 @@
         <div class="field-label">Días por semana</div>
         <div class="rate-days" id="rate-days"></div>
 
-        <div class="field-label" style="margin-top:18px">Horas por día</div>
-        <input class="field-input" type="number" id="rate-hours-day" min="0.5" max="16" step="0.5"
-               inputmode="decimal" value="6" oninput="rateRecalc()" style="--step-accent:var(--blue-deep)">
+        <label class="field-label" style="margin-top:18px" for="rate-hours-day">Horas por día</label>
+        <input class="field-input" type="text" inputmode="decimal" id="rate-hours-day" maxlength="4"
+               autocomplete="off" value="6" oninput="rateRecalc()" style="--step-accent:var(--blue-deep)">
 
         <div class="rate-result-line">
           <span>Horas al mes</span>
@@ -746,9 +746,9 @@
         </label>
 
         <div id="rate-tax-wrap">
-          <div class="field-label">Porcentaje a sumar</div>
-          <input class="field-input" type="number" id="rate-tax" min="0" max="60" step="1"
-                 inputmode="numeric" value="20" oninput="rateRecalc()" style="--step-accent:var(--blue-deep)">
+          <label class="field-label" for="rate-tax">Porcentaje a sumar</label>
+          <input class="field-input" type="text" inputmode="numeric" id="rate-tax" maxlength="2"
+                 autocomplete="off" value="20" oninput="rateRecalc()" style="--step-accent:var(--blue-deep)">
           <div class="field-hint">Si emites boleta de honorarios, la retención y tus cotizaciones salen de lo que cobras. Súmalas ahora o las pagas de tu bolsillo.</div>
         </div>
       </div>
@@ -859,13 +859,13 @@
 
         <p class="rate-text">Tu máquina de coser, el horno, la selladora, los moldes. No los pagas todos los meses, pero se desgastan todos los meses. Repartir su precio entre los años que te van a durar es lo que te permite reponerlos sin que sea un golpe.</p>
 
-        <div class="field-label">¿Cuánto valen todas juntas?</div>
-        <input class="field-input" type="number" id="fixed-tools-value" min="0" max="99999999" step="10000"
-               inputmode="numeric" placeholder="ej: 250000" oninput="fixedRecalc()" style="--step-accent:var(--green-deep)">
+        <label class="field-label" for="fixed-tools-value">¿Cuánto valen todas juntas?</label>
+        <input class="field-input" type="text" inputmode="numeric" id="fixed-tools-value" maxlength="10"
+               autocomplete="off" placeholder="ej: 250000" oninput="fixedRecalc()" style="--step-accent:var(--green-deep)">
 
-        <div class="field-label" style="margin-top:16px">¿Cuántos años te durarán?</div>
-        <input class="field-input" type="number" id="fixed-tools-years" min="1" max="20" step="1"
-               inputmode="numeric" value="3" oninput="fixedRecalc()" style="--step-accent:var(--green-deep)">
+        <label class="field-label" style="margin-top:16px" for="fixed-tools-years">¿Cuántos años te durarán?</label>
+        <input class="field-input" type="text" inputmode="numeric" id="fixed-tools-years" maxlength="2"
+               autocomplete="off" value="3" oninput="fixedRecalc()" style="--step-accent:var(--green-deep)">
 
         <div class="rate-result-line">
           <span>Cuota mensual</span>
@@ -885,8 +885,9 @@
 
         <p class="rate-text">Cuenta <strong>todo</strong> lo que sale de tu taller, no solo un tipo de producto: si haces 20 jabones y 10 aros, son 30. Mientras más produces, menos le toca pagar a cada pieza.</p>
 
-        <input class="field-input" type="number" id="fixed-units" min="1" max="100000" step="1"
-               inputmode="numeric" value="30" oninput="fixedRecalc()" style="--step-accent:var(--green-deep)">
+        <input class="field-input" type="text" inputmode="numeric" id="fixed-units" maxlength="6"
+               autocomplete="off" value="30" oninput="fixedRecalc()" style="--step-accent:var(--green-deep)"
+               aria-label="Unidades que produces al mes">
       </div>
 
       <!-- ---------- RESULTADO ---------- -->
@@ -991,7 +992,7 @@
   <!-- ==================== RESPALDO ==================== -->
   <div id="view-backup" class="view">
     <div class="section-header">
-      <button class="btn-back" onclick="showView('view-home')">←</button>
+      <button class="btn-back" onclick="closeBackup()" aria-label="Volver">←</button>
       <div class="section-header-title">Respaldo de datos</div>
       <button type="button" class="hdr-home" onclick="goHome()" title="Ir al inicio" aria-label="Ir al inicio"><span class="p1">precio</span><span class="p2">crea</span></button>
     </div>
@@ -1045,7 +1046,7 @@
   <div id="view-help" class="view">
 
     <div class="section-header">
-      <button class="btn-back" onclick="showView('view-home')">←</button>
+      <button class="btn-back" onclick="closeHelp()" aria-label="Volver">←</button>
       <div class="section-header-title">Guía de PrecioCrea</div>
       <button type="button" class="hdr-home" onclick="goHome()" title="Ir al inicio" aria-label="Ir al inicio"><span class="p1">precio</span><span class="p2">crea</span></button>
     </div>
@@ -1060,7 +1061,7 @@
 
       <!-- POR QUÉ IMPORTA -->
       <div class="help-section open">
-        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))">
+        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))" role="button" tabindex="0" aria-expanded="true">
           <div class="help-section-hd-icon" style="background:var(--coral-light)">💜</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">¿Por qué cuesta poner precio?</div>
@@ -1081,7 +1082,7 @@
 
       <!-- MATERIALES -->
       <div class="help-section" id="help-materiales">
-        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))">
+        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))" role="button" tabindex="0" aria-expanded="false">
           <div class="help-section-hd-icon" style="background:var(--coral-light)">🧺</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Paso 1 · Materiales</div>
@@ -1111,7 +1112,7 @@
 
       <!-- TIEMPO -->
       <div class="help-section" id="help-tiempo">
-        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))">
+        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))" role="button" tabindex="0" aria-expanded="false">
           <div class="help-section-hd-icon" style="background:var(--blue-light)">⏰</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Paso 2 · Tu tiempo</div>
@@ -1147,7 +1148,7 @@
 
       <!-- CREATIVIDAD -->
       <div class="help-section" id="help-creatividad">
-        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))">
+        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))" role="button" tabindex="0" aria-expanded="false">
           <div class="help-section-hd-icon" style="background:var(--purple-light)">🎨</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Paso 3 · Creatividad</div>
@@ -1176,7 +1177,7 @@
 
       <!-- COSTOS ESTRUCTURALES -->
       <div class="help-section" id="help-fijos">
-        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))">
+        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))" role="button" tabindex="0" aria-expanded="false">
           <div class="help-section-hd-icon" style="background:var(--green-light)">🏠</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Paso 4 · Costos fijos</div>
@@ -1211,7 +1212,7 @@
 
       <!-- PRECIO MÍNIMO VS IDEAL -->
       <div class="help-section">
-        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))">
+        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))" role="button" tabindex="0" aria-expanded="false">
           <div class="help-section-hd-icon" style="background:var(--yellow-light)">📊</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Precio mínimo vs. ideal</div>
@@ -1242,7 +1243,7 @@
 
       <!-- PUBLICAR TU PRECIO -->
       <div class="help-section">
-        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))">
+        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))" role="button" tabindex="0" aria-expanded="false">
           <div class="help-section-hd-icon" style="background:var(--purple-light)">📸</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Publicar tu precio</div>
@@ -1273,7 +1274,7 @@
 
       <!-- ERRORES COMUNES -->
       <div class="help-section">
-        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))">
+        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))" role="button" tabindex="0" aria-expanded="false">
           <div class="help-section-hd-icon" style="background:#FFE8E8">🚫</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Errores que drenan tu negocio</div>
@@ -1303,7 +1304,7 @@
 
       <!-- MANTRAS -->
       <div class="help-section">
-        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))">
+        <div class="help-section-hd" onclick="toggleHelp(this.closest('.help-section'))" role="button" tabindex="0" aria-expanded="false">
           <div class="help-section-hd-icon" style="background:var(--purple-light)">🌟</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Lo que toda creadora debe recordar</div>
@@ -1369,7 +1370,7 @@
       </div>
 
       <div class="help-version">
-        Versión 2.0.0 · creada para <a href="https://viviloaiza.cl" target="_blank" rel="noopener noreferrer">viviloaiza.cl</a> por parg
+        Versión 2.0.1 · creada para <a href="https://viviloaiza.cl" target="_blank" rel="noopener noreferrer">viviloaiza.cl</a> por parg
       </div>
 
     </div>
@@ -1401,7 +1402,7 @@
 
 <!-- ==================== BARRA DE PESTAÑAS ==================== -->
 <nav class="tabbar" id="tabbar" aria-label="Secciones">
-  <button type="button" class="tab-btn active" data-view="view-home" onclick="showView('view-home')">
+  <button type="button" class="tab-btn active" data-view="view-home" onclick="showView('view-home')" aria-current="page">
     <span class="tab-ico">✨</span><span class="tab-lbl">Inicio</span>
   </button>
   <button type="button" class="tab-btn" data-view="view-products" onclick="showView('view-products')">
@@ -1415,7 +1416,7 @@
   </button>
 </nav>
 
-<div class="toast" id="toast">✅ Guardado</div>
+<div class="toast" id="toast" role="status" aria-live="polite">✅ Guardado</div>
 
 <!-- Banner de "nueva versión disponible" -->
 <div class="update-banner" id="update-banner" role="status" aria-live="polite">

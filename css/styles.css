@@ -46,8 +46,13 @@
   --bg:            #FBF6F2;
   --card:          #FFFFFF;
   --text:          #251C2E;
-  --muted:         #7C7089;
-  --muted-soft:    #A79CB2;
+  /* Los dos grises van SIEMPRE de letra, así que se calibran por contraste
+     medido sobre --bg (#FBF6F2), que es el peor caso: --muted 4,7:1 y
+     --muted-soft 5,1:1. Los valores de la 2.0.0 (#7C7089 / #A79CB2) daban
+     4,3:1 y 2,4:1 — los rótulos de pestañas, placeholders y "PRECIO MÍNIMO"
+     se perdían con el teléfono al sol. */
+  --muted:         #756A82;
+  --muted-soft:    #6E6480;
   --border:        #EFE7EE;
   --border-strong: #DCCEEC;
   --wash:          #F4EFF6;   /* relleno tenue para chips y campos internos */
@@ -1015,7 +1020,8 @@ body.sheet-open .app { padding-bottom: 40px; }
   background: none;
   outline: none;
   font-family: inherit;
-  font-size: 15px;
+  /* 16px mínimo: bajo eso, iOS hace zoom al enfocar y la página queda ampliada. */
+  font-size: 16px;
   font-weight: 600;
   color: var(--text);
   -webkit-appearance: none;
@@ -1033,7 +1039,9 @@ body.sheet-open .app { padding-bottom: 40px; }
   font-weight: 800;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
+  position: relative;
 }
+.search-clear::after { content: ''; position: absolute; inset: -10px; }
 .search-clear[hidden] { display: none; }
 
 .products-list {
@@ -1130,9 +1138,12 @@ body.sheet-open .app { padding-bottom: 40px; }
   width: 30px; height: 38px;
   background: none;
   font-size: 15px;
-  opacity: 0.4;
+  /* En el teléfono no hay hover: al 0.4 la papelera era casi invisible. */
+  opacity: 0.75;
+  position: relative;
 }
-.pc-delete:hover { opacity: 0.9; }
+.pc-delete::after { content: ''; position: absolute; inset: -5px -4px; }
+.pc-delete:hover { opacity: 1; }
 /* Se conserva el nombre de la 1.6: showDetail sigue siendo el gesto de editar */
 .pc-edit { display: none; }
 
@@ -1366,6 +1377,9 @@ body.sheet-open .app { padding-bottom: 40px; }
   transition: transform 0.14s;
 }
 .settings-row:active { transform: translateY(1px); }
+/* Sin esta regla, el display:flex de arriba le gana al [hidden] del navegador
+   y la fila "Instalar en tu teléfono" seguía visible con la app ya instalada. */
+.settings-row[hidden] { display: none; }
 .sr-ico {
   width: 38px; height: 38px;
   flex-shrink: 0;
@@ -1499,6 +1513,9 @@ body.sheet-open .app { padding-bottom: 40px; }
   flex-shrink: 0;
   color: #fff;
   line-height: 1;
+  /* Zona de toque ampliada sin cambiar el tamaño visual: a 20px reales, el
+     dedo fallaba el "?" y activaba el campo de al lado. */
+  position: relative;
 }
 .tip-btn:active { transform: scale(0.9); }
 
@@ -1607,7 +1624,8 @@ body.sheet-open .app { padding-bottom: 40px; }
   gap: 8px;
   align-items: center;
 }
-.mat-row .field-input { padding: 13px 15px; font-size: 15px; }
+/* 16px mínimo: bajo eso, iOS hace zoom al enfocar y la página queda ampliada. */
+.mat-row .field-input { padding: 13px 15px; font-size: 16px; }
 .mat-row .field-input.mat-name { flex: 1; min-width: 0; }
 .mat-row .field-input.mat-cost { flex: 0 0 100px; text-align: right; }
 
@@ -1619,7 +1637,10 @@ body.sheet-open .app { padding-bottom: 40px; }
   padding: 4px;
   transition: color 0.2s;
   flex-shrink: 0;
+  /* Zona de toque ampliada: a 24px reales había que apuntar dos veces. */
+  position: relative;
 }
+.btn-rem::after { content: ''; position: absolute; inset: -10px -8px; }
 .btn-rem:hover { color: var(--coral-deep); }
 
 .btn-add-mat {
@@ -2155,7 +2176,8 @@ body.sheet-open .app { padding-bottom: 40px; }
   border: 1px solid var(--border);
   border-radius: 12px;
   font-family: 'Nunito', sans-serif;
-  font-size: 14.5px;
+  /* 16px mínimo: bajo eso, iOS hace zoom al enfocar y no lo deshace. */
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   text-align: right;
@@ -2439,7 +2461,8 @@ body.sheet-open .app { padding-bottom: 40px; }
   border: 1px solid var(--border);
   border-radius: 12px;
   font-family: 'Nunito', sans-serif;
-  font-size: 14.5px;
+  /* 16px mínimo: bajo eso, iOS hace zoom al enfocar y no lo deshace. */
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   text-align: right;
@@ -3381,11 +3404,17 @@ body.sheet-open .app { padding-bottom: 40px; }
   background: var(--text);
   color: #F8F4FF;
   padding: 13px 24px;
-  border-radius: var(--pill);
+  border-radius: 18px;
   font-size: 14px;
   font-weight: 800;
   z-index: 9500;
-  white-space: nowrap;
+  /* Los avisos largos ("Sin espacio para guardar. Exporta un respaldo…") se
+     parten en líneas: con nowrap se salían de la pantalla por los dos lados
+     y el overflow-x:hidden del body impedía leerlos. */
+  white-space: normal;
+  text-align: center;
+  max-width: calc(100vw - 32px);
+  width: max-content;
   box-shadow: 0 10px 28px rgba(0,0,0,0.28);
   transition: transform 0.35s cubic-bezier(0.34,1.2,0.64,1);
 }
@@ -3414,6 +3443,9 @@ body.sheet-open .toast { bottom: calc(28px + env(safe-area-inset-bottom)); }
   opacity: 1;
   pointer-events: auto;
 }
+/* Con un diálogo abierto, el fondo no se desplaza (en iOS seguía scrolleando
+   detrás del velo). Mismo comportamiento que ya tenía la bienvenida. */
+body:has(.modal-overlay.show) { overflow: hidden; }
 .modal {
   background: #fff;
   border-radius: var(--radius);
