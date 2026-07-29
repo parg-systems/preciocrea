@@ -8,6 +8,145 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 
 ---
 
+## [2.0.0] — 2026-07-28 · rediseño completo de la interfaz
+
+Se aplica el rediseño 2.0 que estaba en `_archivo/PrecioCrea 2.0 aniversario/`.
+Era una maqueta de diseño (formato Design Component: navegable, sin lógica real),
+así que aquí se lleva a la app: piel nueva y arquitectura de información nueva,
+**sin tocar una sola fórmula de cálculo ni el motor de publicaciones**. Un
+producto calculado en la 1.6.0 da exactamente el mismo precio en la 2.0.0, y las
+imágenes que genera el Estudio son idénticas píxel a píxel.
+
+Es un salto mayor de versión por la navegación: quien abra la app se va a
+encontrar con otra estructura, no con la misma pantalla repintada.
+
+### Añadido
+
+- **Barra de pestañas.** Cuatro secciones fijas abajo — Calcular ✨ · Productos 🎨
+  · Publicar 📸 · Tu marca 👤 — en vez del scroll único de ocho bloques que era el
+  home. Las pantallas de trabajo (calculadora, resultados, detalle, respaldo,
+  guía, estudio) pasan a ser *sheets*: ocupan todo y esconden el encabezado y la
+  barra, para que no compitan con lo que la creadora está haciendo.
+- **Pantalla de bienvenida de aniversario.** Sustituye a la cinta fija que
+  aparecía en todas las pantallas. Se muestra una sola vez (clave
+  `pc_welcome_20`) y queda siempre a mano en la píldora del encabezado. Absorbe
+  el onboarding "Antes de empezar", que deja de ser una tarjeta suelta del home.
+- **Buscador de productos.** Filtra por nombre y descripción, sin acentos ni
+  mayúsculas ("jabon" encuentra "Jabón de lavanda"). Aparece a partir de cuatro
+  productos guardados; por debajo de eso la lista se recorre de un vistazo.
+- **"Publícalo hoy mismo"** al final de los resultados: guarda el producto y
+  abre el Estudio de una vez, en lugar de obligar a guardar, volver a la lista y
+  entrar por separado.
+- **"Los 4 pilares"** en la pestaña Calcular: explica de qué está hecho un precio
+  antes de calcular ninguno. Antes el home vacío no decía nada.
+- **Asistente de valor hora.** El paso 2 pedía el número más difícil de la app
+  —cuánto vale tu hora— con un globo de ayuda como única guía. Ahora hay un
+  asistente opcional, pensado para quien trabaja desde su casa, que llega ahí
+  por partes: cuánto necesitas ganar al mes (con el gasto del hogar desglosado y
+  montos de referencia de Santiago, editables), cuánto tiempo puedes dedicarle,
+  cuánto de ese tiempo se cobra de verdad y cuánto se llevan AFP, salud e
+  impuestos. El resultado se compara con el mínimo legal por hora y avisa si
+  queda por debajo. Se abre desde el paso 2, desde la guía y desde «Tu marca».
+- **Asistente de costos fijos.** El hermano del anterior, para el paso 4, con la
+  misma lógica: la parte de tu casa que ocupa el taller (con el arriendo y las
+  cuentas ya sembrados desde el asistente de valor hora, si lo usaste), los
+  gastos que existen solo por el negocio, la cuota mensual de tus herramientas y
+  las unidades que produces al mes. El resultado dice cuánto carga cada producto
+  y qué pasa si no lo cobras. Los dos asistentes se reparten el trabajo sin
+  solaparse: en el del valor hora los gastos del hogar quedan fuera **a
+  propósito**, porque la proporción que le toca al negocio se cobra aquí.
+- **El valor hora y los costos fijos se pueden guardar y reutilizar.** Con «recordar este valor»,
+  cada producto nuevo arranca con ellos ya puestos y una fila lo anuncia — los
+  números nunca aparecen por arte de magia. Viven en `pc_rate_v1` y `pc_fixed_v1`
+  y viajan en el respaldo, que pasa a `version: 4` (v1, v2 y v3 se siguen
+  importando igual).
+- **Los 4 pilares llevan a la guía.** Cada tarjeta abre su sección
+  correspondiente ya desplegada y con la página posicionada en ella: quien se
+  pregunta qué entra en "Creatividad" lo pregunta justo ahí, no en el índice.
+- **El logotipo vuelve al inicio** desde cualquier pantalla. Va en el
+  encabezado de las pestañas y, en versión compacta, también en las cabeceras
+  de las pantallas completas — que es justo donde antes desaparecía. Si hay
+  trabajo sin guardar (un cálculo empezado, un resultado sin guardar, un
+  producto editado, la marca cambiada o una publicación sin descargar),
+  pregunta antes de salir.
+- **Muestrario de estilos** en la pestaña Publicar. Las cuatro miniaturas se
+  dibujan con `studioRenderSlide`, el mismo motor que exporta la imagen final,
+  con el color de la marca y el primer producto guardado: cada estilo se ve como
+  es de verdad —dónde va la foto, dónde el precio, si el fondo es pleno o
+  partido— en vez de prometer algo que la publicación no cumple.
+- **Sección "Publicar tu precio"** en la guía, que faltaba desde que el Estudio
+  existe.
+
+### Cambiado
+
+- **Sistema visual.** Fondo plano `#FBF6F2` en vez del crema con tres manchas
+  difuminadas; el color se concentra dentro de las tarjetas. El acento que lleva
+  texto pasa del coral luminoso a la frambuesa `#DE3B57` y el violeta `#8E3FD4`
+  (el coral se queda para halos y fondos claros). Bordes de 1 px, sombras casi
+  planas salvo en las piezas con degradado, botones en píldora y titulares en
+  Fraunces 900 con tracking negativo.
+- **Resultados y detalle** dejan de mostrar dos cajas de precio en paralelo: el
+  precio ideal con IVA es ahora la pieza protagonista y el mínimo queda como una
+  fila de referencia debajo.
+- **"Tu marca"** deja de estar escondida dentro de Respaldo y pasa a ser una
+  pestaña propia, con accesos a Respaldo y a la Guía al final.
+- **La versión que se muestra en la guía** decía `v1.5.0` mientras el service
+  worker declaraba `1.6.0`. Ahora hay una sola línea, al final de la guía, y dice
+  qué versión es, para quién y de quién.
+- La barra de progreso de la calculadora pasa de cuatro puntos de tamaño variable
+  a cuatro segmentos iguales, con el nombre del paso a la izquierda.
+
+### Corregido
+
+- **El buscador rompía el arranque.** Su variable de estado se declaraba con
+  `let` por debajo del bloque de inicio, así que la primera llamada a
+  `renderProducts()` caía en la zona muerta temporal y abortaba el resto del
+  arranque en silencio — entre otras cosas, la bienvenida no llegaba a aparecer.
+  Se declara arriba, junto al estado.
+- **Guardar un producto cuando el almacenamiento está lleno** dejaba el producto
+  vivo en memoria: la app lo mostraba como guardado y al siguiente arranque había
+  desaparecido. Ahora se deshace el alta si la escritura falla.
+- **Instalar la app dependía de que el navegador avisara, y a veces no avisa.**
+  El aviso «Instalar en tu teléfono» del inicio solo aparece cuando llega el
+  evento `beforeinstallprompt`: en escritorio tarda, en Firefox no llega nunca y
+  en Android desaparece para siempre si ya se rechazó una vez. Peor: en esos
+  casos el botón **no hacía nada**, porque la única guía manual que existía era
+  la de iPhone. Ahora hay una fila fija en «Tu marca», siempre disponible salvo
+  que la app ya esté instalada, y una guía por plataforma — con el aviso de que
+  si no aparece la opción es porque el enlace se abrió dentro de Instagram o
+  WhatsApp, que es lo que pasa casi siempre. En el archivo portable dice la
+  verdad: esa copia no se instala, y explica por qué.
+- **El nombre del caché era la versión, y eso escondió una entrega entera.** El
+  service worker guardaba todo bajo `preciocrea-${VERSION}`. Al añadir el
+  asistente de valor hora dentro de la misma 2.0.0, la llave del caché no cambió
+  y `sw.js` quedó byte a byte idéntico: los navegadores que ya tenían la app
+  siguieron sirviendo los archivos viejos **sin mostrar siquiera el banner de
+  actualización**. El código estaba publicado y nadie lo veía. Ahora hay un
+  `BUILD` aparte de `VERSION`: la versión es lo que se le muestra a la creadora,
+  el build es la llave del caché y sube en cada cambio de HTML, CSS o JS.
+- **El piso legal por hora estaba desactualizado.** La guía y el globo del
+  paso 2 decían «~$1.800/hr en Chile». Con el ingreso mínimo en $500.000 y
+  jornada de 42 horas semanales son unos **$2.750** — la app estaba dando un
+  suelo un 35% más bajo del real, justo en el pilar que más pesa en el precio.
+- **Salir de "Tu marca" a otra pestaña perdía lo escrito.** Al volver, el
+  formulario se repintaba desde el estado anterior. Ahora se vuelca antes de
+  salir, con `captureBrandForm()`.
+- **Los desplazamientos automáticos no llegaban a su destino.** `showView()`
+  usaba la forma de dos argumentos de `scrollTo`, que hereda el
+  `scroll-behavior: smooth` de la hoja de estilos: lanzaba una animación de
+  vuelta arriba que seguía corriendo y pisaba cualquier salto posterior. Ojo al
+  tocar esto: `behavior:'auto'` **no** arregla nada — según la especificación
+  significa "usa el scroll-behavior calculado", o sea el suave. Hay que pedir
+  `behavior:'instant'`.
+
+### Se conserva
+
+Nada de la 1.6.0 se pierde: prohibición de venta, `© viviLoaiza.cl`, el aviso de
+marcas registradas y el bloque "Sobre la creadora" con el enlace a Instagram
+siguen ahí, rediseñados. La maqueta original los eliminaba.
+
+---
+
 ## [1.6.0] — 2026-07-27 · edición de aniversario
 
 Auditoría completa antes del release público: seguridad, funcionalidad y bugs.

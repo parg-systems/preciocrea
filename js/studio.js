@@ -75,6 +75,7 @@ const STUDIO = {
   _after: null,   // destino pendiente cuando desviamos a configurar la marca
   _raf: 0,        // id del repintado pendiente (coalescing del preview)
   _thumbs: 0,     // temporizador de refresco de las miniaturas de estilo
+  _brandSaved: '', // huella de la marca tal como está guardada, para detectar cambios sin guardar
   _pick: [],      // ids elegidos en la pantalla de selección
   _pickMode: '',  // 'historia' (uno) | 'catalogo' (varios, ordenados)
   _share: null,   // blob pre-renderizado para que navigator.share sea síncrono
@@ -123,7 +124,18 @@ function studioLoadBrand() {
   let stored = null;
   try { stored = JSON.parse(localStorage.getItem(KEY_BRAND) || 'null'); } catch(e) {}
   STUDIO.brand = studioSanitizeBrand(stored) || { ...STUDIO_BRAND_DEFAULT };
+  STUDIO._brandSaved = JSON.stringify(STUDIO.brand);
   return STUDIO.brand;
+}
+
+// ¿Hay algo escrito o elegido en el formulario que no se haya guardado?
+// El color, el modo de precio y el logo mutan STUDIO.brand en el acto (para
+// que la vista previa reaccione), así que no basta con mirar los inputs: se
+// compara el estado completo contra la última versión persistida.
+function studioBrandDirty() {
+  if (!STUDIO._brandSaved) return false;
+  captureBrandForm();
+  return JSON.stringify(STUDIO.brand) !== STUDIO._brandSaved;
 }
 
 // Nunca devuelve null: si aún no se configuró, entrega los valores por defecto.
@@ -140,6 +152,7 @@ function studioHasBrand() {
 function studioSaveBrand() {
   try {
     localStorage.setItem(KEY_BRAND, JSON.stringify(STUDIO.brand));
+    STUDIO._brandSaved = JSON.stringify(STUDIO.brand);
     return true;
   } catch(e) {
     toast('⚠️ No se pudo guardar. Libera espacio en tu navegador.');
@@ -152,8 +165,79 @@ function studioSaveBrand() {
 // ===================================================
 
 function openBrand() {
-  renderBrandForm();
-  showView('view-brand');
+  showView('view-brand');   // showView ya llama a renderBrandForm()
+}
+
+// ===================================================
+// STUDIO — PESTAÑA "PUBLICAR"
+// ===================================================
+// Producto de muestra para las miniaturas del hub cuando todavía no hay nada
+// guardado. Tiene la misma forma que un producto real porque studioProductSlide
+// le pide `idealP` para armar el precio.
+const STUDIO_DEMO_PRODUCT = {
+  id: 0,
+  name: 'Jabón de lavanda',
+  desc: 'Hecho a mano con lavanda de Colchagua',
+  emoji: '🧼',
+  idealP: 7200
+};
+
+function renderStudioHub() {
+  renderHubBrandCard();
+  renderHubStyles();
+  // Las métricas de measureText cambian cuando termina de cargar la tipografía
+  // real, así que hay que repintar: si no, las miniaturas quedan con el
+  // autoescalado calculado sobre la fuente de respaldo.
+  studioFontsReady().then(renderHubStyles);
+}
+
+function renderHubBrandCard() {
+  const title = document.getElementById('hub-brand-title');
+  const sub   = document.getElementById('hub-brand-sub');
+  if (!title || !sub) return;
+
+  const b = studioBrandOrDefault();
+  if (b.name) {
+    title.textContent = 'Tu marca está configurada';
+    sub.textContent   = b.handle ? `${b.name} · @${b.handle}` : b.name;
+  } else {
+    title.textContent = 'Configura tu marca';
+    sub.textContent   = 'Nombre, Instagram, logo y color';
+  }
+}
+
+// Las cuatro miniaturas se dibujan con studioRenderSlide, el mismo motor que
+// exporta la imagen final: cada estilo se ve como es de verdad —dónde va la
+// foto, dónde el precio, si el fondo es pleno o partido— y con el color de la
+// marca de la creadora. Dibujarlas a mano en CSS las dejaba a las cuatro
+// iguales y prometía algo que la publicación no cumplía.
+function renderHubStyles() {
+  const strip = document.getElementById('hub-style-strip');
+  if (!strip) return;
+
+  const f     = STUDIO_FORMATS.historia;
+  const tpls  = studioTemplatesFor('historia');
+  const b     = studioBrandOrDefault();
+  const pal   = studioPalette(b.accent);
+  // Con productos guardados se muestra el primero: la creadora reconoce lo suyo.
+  const slide = studioProductSlide(S.products[0] || STUDIO_DEMO_PRODUCT, b.priceMode);
+
+  strip.innerHTML = tpls.map(t => `
+    <button type="button" class="style-thumb" onclick="openStudioPicker()" title="${esc(t.desc)}">
+      <canvas class="stt-canvas" data-tpl="${t.id}" aria-label="Estilo ${esc(t.name)}"></canvas>
+      <span class="stt-name">${esc(t.name)}</span>
+    </button>`).join('');
+
+  const TW = 118, dpr = Math.min(2, window.devicePixelRatio || 1);
+  strip.querySelectorAll('.stt-canvas').forEach(c => {
+    c.width  = Math.round(TW * dpr);
+    c.height = Math.round(TW * dpr * f.h / f.w);
+    const ctx = c.getContext('2d');
+    const k = c.width / f.w;
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    const t = studioTemplate(c.dataset.tpl);
+    studioRenderSlide(ctx, slide, t, pal, f.w, f.h);
+  });
 }
 
 function renderBrandForm() {
@@ -172,16 +256,11 @@ function renderBrandForm() {
     </button>`).join('');
 
   document.getElementById('brand-body').innerHTML = `
-    <p class="brand-intro">
-      Esto se configura <strong>una sola vez</strong>. Tu nombre, tu @ y tu color
-      aparecerán en todas las publicaciones que crees. 💛
-    </p>
-
-    <div class="field-label">🏷️ Nombre de tu marca</div>
+    <div class="field-label">Nombre de tu marca</div>
     <input class="field-input" type="text" id="brand-name" maxlength="${MAX_BRAND_NAME}"
            placeholder="Ej: Telar de Luna" value="${esc(b.name)}" oninput="previewBrand()">
 
-    <div class="field-label" style="margin-top:16px">📷 Tu Instagram</div>
+    <div class="field-label" style="margin-top:16px">Tu Instagram</div>
     <div class="brand-handle-wrap">
       <span class="brand-handle-at">@</span>
       <input class="field-input brand-handle-input" type="text" id="brand-handle"
@@ -189,7 +268,7 @@ function renderBrandForm() {
              value="${esc(b.handle)}" oninput="previewBrand()">
     </div>
 
-    <div class="field-label" style="margin-top:18px">🖼️ Tu logo <span class="field-optional">opcional</span></div>
+    <div class="field-label" style="margin-top:18px">Tu logo <span class="field-optional">opcional</span></div>
     ${b.logo
       ? `<div class="logo-box">
            <div class="logo-preview"><img src="${esc(b.logo)}" alt="Tu logo"></div>
@@ -204,23 +283,23 @@ function renderBrandForm() {
            onchange="studioPickLogo(this)">
     <div class="field-hint">Si subes un logo, reemplaza a tu nombre escrito en las publicaciones. Un PNG con fondo transparente y de color claro funciona en todos los estilos, incluidos los de fondo oscuro.</div>
 
-    <div class="field-label" style="margin-top:18px">🎨 Tu color</div>
+    <div class="field-label" style="margin-top:18px">Tu color</div>
     <div class="brand-swatches" id="brand-swatches">${swatches}</div>
     <label class="brand-custom-color">
       <input type="color" id="brand-color" value="${esc(b.accent)}" oninput="setBrandAccent(this.value)">
       <span>Elegir otro color</span>
     </label>
 
-    <div class="field-label" style="margin-top:18px">💰 Cómo mostrar el precio</div>
+    <div class="field-label" style="margin-top:18px">Cómo mostrar el precio</div>
     <div class="margin-btns brand-price-chips">${priceChips}</div>
-    <div class="field-hint">"Precio" publica tu precio ideal con el IVA ya incluido: es lo que paga quien te compra.</div>
+    <div class="field-hint">«Precio» publica tu precio ideal con el IVA ya incluido: es lo que paga quien te compra.</div>
 
     <label class="brand-toggle">
       <input type="checkbox" id="brand-credit" ${b.credit ? 'checked' : ''} onchange="previewBrand()">
-      <span>Mostrar "hecho con PrecioCrea" en la publicación</span>
+      <span>Mostrar «hecho con PrecioCrea» en la publicación</span>
     </label>
 
-    <button class="btn-save" onclick="saveBrandForm()">💾 Guardar mi marca</button>`;
+    <button class="btn-save" onclick="saveBrandForm()">Guardar mi marca</button>`;
 
   previewBrand();
 }
@@ -286,7 +365,9 @@ function saveBrandForm() {
   const next = STUDIO._after;
   STUDIO._after = null;
   if (next && typeof next === 'function') { next(); return; }
-  showView('view-home');
+  // Sin intención pendiente, el paso natural después de configurar la marca es
+  // el Estudio: es para lo que sirve todo lo que acaba de rellenar.
+  showView('view-studio-hub');
 }
 
 // Vuelca al estado lo que hay escrito ahora mismo en el formulario. Hay que
@@ -1701,17 +1782,20 @@ function renderStudioPick() {
   const b = studioBrandOrDefault();
 
   document.getElementById('studio-pick-title').textContent =
-    multi ? 'Tu catálogo 🗂️' : 'Elige un producto 📱';
+    multi ? 'Tu catálogo' : 'Elige un producto';
 
   const cards = S.products.map(p => {
     const i = sel.indexOf(p.id);
     return `
       <div class="pick-card${i >= 0 ? ' sel' : ''}" onclick="toggleStudioPick(${p.id})">
         ${multi ? `<div class="pick-check">${i >= 0 ? (i + 1) : ''}</div>` : ''}
-        <div class="pc-emoji">${p.emoji}</div>
+        <div class="pc-emoji">${p.emoji ? esc(p.emoji) : '🎨'}</div>
         <div class="pc-info">
           <div class="pc-name">${esc(p.name)}</div>
-          <div class="pc-prices">${fmt(p.idealP)}</div>
+          <div class="pc-prices">
+            <span class="pc-price-val">${fmt(p.idealP * (1 + IVA))}</span>
+            <span class="pc-price-tag">c/IVA</span>
+          </div>
         </div>
         ${multi ? '' : '<div class="pick-arrow">→</div>'}
       </div>`;
@@ -1739,13 +1823,13 @@ function renderStudioPick() {
               placeholder="Hecho a mano" value="${esc(b.name)} · hecho a mano">
 
        <div class="studio-actions" style="padding-left:0; padding-right:0">
-         <button class="btn-save" onclick="startCatalogo()">Continuar →</button>
-         <button class="btn-new-calc" onclick="showView('view-home')">← Volver al inicio</button>
+         <button class="btn-violet" onclick="startCatalogo()">Continuar →</button>
+         <button class="btn-new-calc" onclick="showView('view-studio-hub')">← Volver al Estudio</button>
        </div>`
     : `<p class="brand-intro">¿De cuál producto quieres hacer una historia? 📱</p>
        <div class="pick-list">${cards}</div>
        <div class="studio-actions" style="padding-left:0; padding-right:0">
-         <button class="btn-new-calc" onclick="showView('view-home')">← Volver al inicio</button>
+         <button class="btn-new-calc" onclick="showView('view-studio-hub')">← Volver al Estudio</button>
        </div>`;
 }
 
@@ -1895,7 +1979,7 @@ function studioDispose() {
     });
   }
   STUDIO.piece = null;
-  showView('view-home');
+  showView('view-studio-hub');
 }
 
 function studioActiveSlide() {
@@ -1923,7 +2007,7 @@ function renderStudioEdit() {
            onchange="studioPickPhoto(this)">
 
     <div class="studio-controls">
-      <div class="field-label">🖼️ Estilo</div>
+      <div class="field-label">Estilo</div>
       <div class="studio-tpl-strip" id="studio-tpl-strip"></div>
     </div>
 
@@ -1933,7 +2017,8 @@ function renderStudioEdit() {
 
     <div class="studio-actions">
       ${studioActionButtons(p, multi)}
-      <button class="btn-new-calc" onclick="closeStudio()">← Volver al inicio</button>
+      <div class="studio-hint">La foto no se guarda: vive solo mientras editas esta publicación.</div>
+      <button class="btn-new-calc" onclick="closeStudio()">← Volver al Estudio</button>
     </div>`;
 
   renderStudioFields();
@@ -1947,24 +2032,26 @@ function studioActionButtons(p, multi) {
   const n = p.slides.length;
   const prog = '<div class="studio-progress" id="studio-progress" hidden></div>';
 
+  // La acción principal del Estudio va en violeta, no en el verde de "guardar":
+  // aquí no se guarda nada, se saca la pieza hacia afuera.
   if (!multi) {
     return share
-      ? `<button class="btn-save" onclick="studioShareActive()">📤 Compartir</button>
+      ? `<button class="btn-violet" onclick="studioShareActive()">📤 Compartir</button>
          <button class="btn-new-calc" onclick="studioDownloadActive()">⬇️ Descargar imagen</button>`
-      : `<button class="btn-save" onclick="studioDownloadActive()">⬇️ Descargar imagen</button>`;
+      : `<button class="btn-violet" onclick="studioDownloadActive()">⬇️ Descargar imagen</button>`;
   }
 
   // En iOS <a download> solo baja un archivo por gesto, así que la acción
   // masiva tiene que ser compartir; la lista lámina a lámina siempre está.
   if (share && isIos()) {
-    return `<button class="btn-save" onclick="studioShareAll()">📤 Compartir las ${n} láminas</button>
+    return `<button class="btn-violet" onclick="studioShareAll()">📤 Compartir las ${n} láminas</button>
             ${prog}
-            <button class="btn-new-calc" onclick="studioShareActive()" style="margin-bottom:12px">📤 Solo esta lámina</button>`;
+            <button class="btn-new-calc" onclick="studioShareActive()">📤 Solo esta lámina</button>`;
   }
-  return `<button class="btn-save" onclick="studioDownloadAll()">⬇️ Descargar las ${n} láminas</button>
+  return `<button class="btn-violet" onclick="studioDownloadAll()">⬇️ Descargar las ${n} láminas</button>
           ${prog}
-          <div class="studio-hint" style="margin:-4px 0 12px">Tu navegador puede pedirte permiso para descargar varios archivos: toca Permitir.</div>
-          <button class="btn-new-calc" style="margin-bottom:12px"
+          <div class="studio-hint" style="margin:-4px 0 0">Tu navegador puede pedirte permiso para descargar varios archivos: toca Permitir.</div>
+          <button class="btn-new-calc"
                   onclick="${share ? 'studioShareActive()' : 'studioDownloadActive()'}">
             ${share ? '📤 Compartir' : '⬇️ Descargar'} solo esta lámina
           </button>`;
@@ -1980,11 +2067,11 @@ function renderStudioFields() {
 
   if (slide.kind === 'cover') {
     box.innerHTML = `
-      <div class="field-label">📣 Título de la portada</div>
+      <div class="field-label">Título de la portada</div>
       <input class="field-input" type="text" id="studio-headline" maxlength="60"
              value="${esc(slide.headline || '')}" oninput="setStudioField('headline',this.value,60)">
 
-      <div class="field-label" style="margin-top:16px">💬 Bajada</div>
+      <div class="field-label" style="margin-top:16px">Bajada</div>
       <input class="field-input" type="text" id="studio-subhead" maxlength="90"
              value="${esc(slide.subhead || '')}" oninput="setStudioField('subhead',this.value,90)">`;
     return;
@@ -1997,17 +2084,17 @@ function renderStudioFields() {
     </button>`).join('');
 
   box.innerHTML = `
-    <div class="field-label">✏️ Nombre en la publicación</div>
+    <div class="field-label">Nombre en la publicación</div>
     <input class="field-input" type="text" id="studio-name" maxlength="${MAX_NAME_LEN}"
            value="${esc(slide.name || '')}" oninput="setStudioName(this.value)">
 
-    <div class="field-label" style="margin-top:16px">📝 Descripción</div>
+    <div class="field-label" style="margin-top:16px">Descripción</div>
     <textarea class="field-input field-textarea" id="studio-desc" rows="2" maxlength="${MAX_DESC_LEN}"
               placeholder="Una frase corta sobre tu producto"
               oninput="setStudioField('desc',this.value,${MAX_DESC_LEN})">${esc(slide.desc || '')}</textarea>
     <div class="field-hint">Solo cambia esta publicación; no toca el producto guardado.</div>
 
-    <div class="field-label" style="margin-top:16px">💰 Precio${p.slides.length > 1 ? ' (en todas las láminas)' : ''}</div>
+    <div class="field-label" style="margin-top:16px">Precio${p.slides.length > 1 ? ' (en todas las láminas)' : ''}</div>
     <div class="margin-btns studio-price-chips">${priceChips}</div>`;
 }
 
@@ -2026,7 +2113,7 @@ function renderStudioAccent() {
             onclick="setStudioAccent('${hex}')" aria-label="Color ${hex}"></button>`).join('');
 
   box.innerHTML = `
-    <div class="field-label">🎨 Color de esta publicación</div>
+    <div class="field-label">Color de esta publicación</div>
     <div class="brand-swatches">${swatches}</div>
     <div class="studio-accent-row">
       <label class="brand-custom-color">

@@ -1,8 +1,20 @@
 // PrecioCrea Service Worker
-// Bump VERSION cuando publiques una nueva versión: invalida el caché anterior
-// y notifica al cliente para mostrar el banner "nueva versión disponible".
-const VERSION = '1.6.0';
-const CACHE = `preciocrea-${VERSION}`;
+//
+// VERSION es la versión que se muestra a la creadora. BUILD es el número de
+// entrega: sube en CADA cambio de HTML/CSS/JS, aunque la versión no se mueva.
+//
+// Los dos existen porque son cosas distintas y confundirlas cuesta caro. El
+// nombre del caché es la llave: si no cambia, el service worker sigue sirviendo
+// los archivos viejos para siempre, y como sw.js queda byte a byte idéntico el
+// navegador ni siquiera detecta que hay algo nuevo — no aparece el banner de
+// actualización y no hay forma de salir de ahí desde el teléfono. Pasó al
+// añadir el asistente de valor hora dentro de la misma versión 2.0.0: el código
+// estaba publicado y nadie lo veía.
+//
+// Regla: si tocas index.html, css/ o js/, sube BUILD. Siempre.
+const VERSION = '2.0.0';
+const BUILD   = 4;
+const CACHE = `preciocrea-${VERSION}-b${BUILD}`;
 const ASSETS = [
   './',
   './index.html',
@@ -59,8 +71,9 @@ self.addEventListener('activate', e => {
 //     arreglo la próxima vez que abra, no cuando el navegador lo decida.
 //
 //   Todo lo demás (css, js, fuentes, iconos) → CACHÉ PRIMERO.
-//     Van versionados por el nombre del caché, así que un bump de VERSION ya
-//     los invalida a todos. Aquí la caché es correcta y además instantánea.
+//     Van versionados por el nombre del caché, así que subir BUILD los invalida
+//     a todos de golpe. Aquí la caché es correcta y además instantánea — pero
+//     por eso mismo, olvidar el bump deja a todo el mundo en la versión vieja.
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;

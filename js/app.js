@@ -10,6 +10,12 @@ const S = {
   products: []
 };
 
+// Texto del buscador de la pestaña Productos. Vive aquí arriba a propósito:
+// renderProducts() se llama desde el init, que corre antes de que el motor
+// llegue a la sección de la pestaña. Declararlo allá abajo con `let` lo dejaba
+// en zona muerta temporal y el arranque reventaba en silencio.
+let _search = '';
+
 const CR_MULT = { facil:0.05, moderado:0.15, intenso:0.25, obra:0.40 };
 const IVA     = 0.19;          // Impuesto al Valor Agregado (Chile)
 const MARGINS = [30, 50, 80, 120]; // Opciones de margen de ganancia (%)
@@ -31,7 +37,83 @@ const WISDOMS = [
 // Claves de preferencias en localStorage
 const KEY_PRODUCTS  = 'pc_v1';
 const KEY_BACKUP    = 'pc_last_backup';
-const KEY_ONBOARD   = 'pc_onboarding_done';
+// La bienvenida de la 2.0 estrena clave propia. La vieja (pc_onboarding_done)
+// se queda huérfana a propósito: quien ya usaba la 1.6 merece ver una vez la
+// pantalla de aniversario y el resumen de lo que cambió.
+const KEY_WELCOME   = 'pc_welcome_20';
+const KEY_RATE      = 'pc_rate_v1';    // asistente de valor hora
+const KEY_FIXED     = 'pc_fixed_v1';   // asistente de costos fijos
+
+// ===================================================
+// VALOR HORA — referencias
+// ===================================================
+// Montos de referencia para un hogar de Santiago, revisados en julio de 2026.
+// NO son un dato de la creadora: son un punto de partida para que la pantalla
+// no empiece en blanco, y todos se editan. Si cambian, se cambian aquí.
+const RATE_REF_FECHA = 'julio de 2026';
+
+const RATE_GASTOS = [
+  { id: 'arriendo',  lbl: 'Arriendo o dividendo',            ref: 450000 },
+  { id: 'cuentas',   lbl: 'Cuentas (luz, agua, gas, internet)', ref: 120000 },
+  { id: 'comida',    lbl: 'Supermercado y comida',           ref: 350000 },
+  { id: 'transporte',lbl: 'Transporte',                      ref: 70000  },
+  { id: 'salud',     lbl: 'Salud y previsión',               ref: 80000  },
+  { id: 'otros',     lbl: 'Otros (educación, deudas, imprevistos)', ref: 100000 }
+];
+
+// Piso legal por hora. Ingreso mínimo mensual $500.000 y jornada de 42 horas
+// semanales (Ley 21.561, vigente desde abril de 2026): 42 × 4,33 ≈ 182 h al mes.
+const RATE_MIN_MENSUAL = 500000;
+const RATE_MIN_JORNADA = 42;
+const SEMANAS_MES      = 52 / 12;   // 4,333
+const RATE_MIN_HORA    = Math.round(RATE_MIN_MENSUAL / (RATE_MIN_JORNADA * SEMANAS_MES));
+
+// ===================================================
+// COSTOS FIJOS — referencias
+// ===================================================
+// El gasto de la casa que se prorratea al negocio. Se siembra con lo que la
+// creadora ya contestó en el asistente de valor hora, si lo usó: ahí dijo
+// cuánto paga de arriendo, no tiene por qué repetirlo.
+const FIXED_HOGAR = [
+  { id: 'arriendo', lbl: 'Arriendo o dividendo',        ref: 450000, desdeRate: 'arriendo' },
+  { id: 'cuentas',  lbl: 'Luz, agua, gas e internet',   ref: 120000, desdeRate: 'cuentas'  }
+];
+
+// Gastos que existen solo porque existe el emprendimiento.
+const FIXED_NEGOCIO = [
+  { id: 'taller',        lbl: 'Arriendo de taller aparte',        ref: 0     },
+  { id: 'publicidad',    lbl: 'Publicidad en redes',              ref: 15000 },
+  { id: 'web',           lbl: 'Página web o dominio',             ref: 2500  },
+  { id: 'plataformas',   lbl: 'Plataformas de venta y comisiones', ref: 5000 },
+  { id: 'suscripciones', lbl: 'Suscripciones (diseño, apps)',     ref: 5000  },
+  { id: 'otros',         lbl: 'Otros (transporte, envíos, patente)', ref: 5000 }
+];
+
+const FIXED_DEFAULTS = {
+  share: 15,          // % de la casa que ocupa el negocio
+  hogar: FIXED_HOGAR.reduce((o, g) => (o[g.id] = g.ref, o), {}),
+  negocio: FIXED_NEGOCIO.reduce((o, g) => (o[g.id] = g.ref, o), {}),
+  toolsValue: 250000, // valor de todas las herramientas juntas
+  toolsYears: 3,      // años que se espera que duren
+  units: 30           // unidades producidas al mes
+};
+
+// Respuestas por defecto del asistente.
+const RATE_DEFAULTS = {
+  mode: 'gastos',     // 'gastos' | 'directo'
+  gastos: RATE_GASTOS.reduce((o, g) => (o[g.id] = g.ref, o), {}),
+  metaDirecta: 0,
+  share: 50,          // % del gasto del hogar que debe cubrir el emprendimiento
+  days: 5,
+  hoursDay: 6,
+  focus: 65,          // % de las horas que son producción cobrable
+  taxOn: true,
+  tax: 20
+};
+
+// Las cuatro pestañas de la barra inferior. El resto de las vistas son
+// "sheets": ocupan la pantalla completa y esconden el encabezado y la barra.
+const TAB_VIEWS = ['view-home', 'view-products', 'view-studio-hub', 'view-brand'];
 
 // SVG inline de marcas (uso referencial, ver disclaimer en el footer)
 const ICONS = {
@@ -45,8 +127,11 @@ const ICONS = {
 // ===================================================
 (function init() {
   S.products = loadProducts();
+  S.rate     = loadRate();
+  S.fixed    = loadFixed();
   renderHome();
-  renderOnboarding();
+  renderProducts();
+  initWelcome();
   setupInstallPrompt();
 })();
 
@@ -106,16 +191,22 @@ function isIos() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent || '');
 }
 
+// El archivo portable no puede instalarse: el build le quita el service worker
+// y el manifest a propósito. Decirlo es mejor que dar unos pasos que no van a
+// funcionar y dejar a la creadora pensando que hizo algo mal.
+function esPortable() {
+  return !document.querySelector('link[rel="manifest"]');
+}
+
 function setupInstallPrompt() {
-  // Si la app ya está instalada (modo standalone), no hace falta el botón.
+  // Si la app ya está instalada (modo standalone), no hace falta ofrecerlo.
   if (isStandalone()) return;
 
-  // Si es iOS, mostrar el botón con la guía manual.
-  if (isIos()) {
-    renderInstallButton();
-  }
+  // Si es iOS, mostrar el aviso del inicio: ahí la instalación es manual y el
+  // navegador nunca avisa de nada.
+  if (isIos()) renderInstallButton();
 
-  // Android / desktop Chrome: esperar el evento del navegador.
+  // Android / escritorio Chrome: esperar el evento del navegador.
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredInstallPrompt = e;
@@ -126,14 +217,26 @@ function setupInstallPrompt() {
     deferredInstallPrompt = null;
     const btn = document.getElementById('btn-install');
     if (btn) btn.classList.remove('show');
+    renderInstallRow();
     toast('🎉 ¡App instalada!');
   });
+
+  renderInstallRow();
 }
 
 function renderInstallButton() {
   const btn = document.getElementById('btn-install');
   if (!btn || isStandalone()) return;
   if (deferredInstallPrompt || isIos()) btn.classList.add('show');
+}
+
+// Fila de "Tu marca". El aviso del inicio depende de que el navegador avise, y
+// eso no siempre pasa: en escritorio tarda, en Firefox no llega nunca y en
+// Android desaparece si ya se rechazó una vez. Esta fila está siempre.
+function renderInstallRow() {
+  const row = document.getElementById('install-row');
+  if (!row) return;
+  row.hidden = isStandalone();
 }
 
 function handleInstallClick() {
@@ -145,39 +248,302 @@ function handleInstallClick() {
         const btn = document.getElementById('btn-install');
         if (btn) btn.classList.remove('show');
       }
-    }).catch(() => {/* el usuario cerró el diálogo */});
-  } else if (isIos()) {
-    document.getElementById('ios-install-overlay').classList.add('show');
+    }).catch(() => {/* la creadora cerró el diálogo */});
+    return;
   }
+  // Sin diálogo nativo disponible, se explica cómo hacerlo a mano. Antes esto
+  // solo existía para iOS y en el resto de los casos el botón no hacía nada.
+  showInstallGuide();
 }
 
-function hideIosInstallGuide() {
-  document.getElementById('ios-install-overlay').classList.remove('show');
+const PASOS_IOS = [
+  'Toca el botón <strong>Compartir</strong> <span class="ios-share-icon">⬆️</span> abajo de Safari.',
+  'Desliza y toca <strong>"Agregar a inicio"</strong> ➕',
+  'Toca <strong>"Agregar"</strong> arriba a la derecha.'
+];
+
+const PASOS_ANDROID = [
+  'Abre el menú del navegador: los <strong>tres puntos ⋮</strong> de arriba a la derecha.',
+  'Toca <strong>"Instalar aplicación"</strong> o <strong>"Agregar a pantalla de inicio"</strong>.',
+  'Confirma y listo: queda con las demás apps.'
+];
+
+function showInstallGuide() {
+  const overlay = document.getElementById('install-overlay');
+  const icono   = document.getElementById('install-icon');
+  const titulo  = document.getElementById('install-title');
+  const pasos   = document.getElementById('install-steps');
+  const tip     = document.getElementById('install-tip');
+  if (!overlay) return;
+
+  if (esPortable()) {
+    icono.textContent = '📄';
+    titulo.textContent = 'Esta copia no se instala';
+    pasos.innerHTML = '';
+    tip.innerHTML = 'Estás usando el <strong>archivo único</strong>, pensado para abrirse con doble clic sin internet. Funciona completo, pero no se puede instalar como app. Para eso pide el enlace de PrecioCrea y ábrelo en el navegador de tu teléfono.';
+    overlay.classList.add('show');
+    return;
+  }
+
+  const ios = isIos();
+  const lista = ios ? PASOS_IOS : PASOS_ANDROID;
+
+  icono.textContent = ios ? '🍎' : '📲';
+  titulo.textContent = ios ? 'Instalar en tu iPhone' : 'Instalar en tu teléfono';
+  pasos.innerHTML = lista.map((p, i) => `
+    <div class="ios-step">
+      <span class="ios-step-n">${i + 1}</span>
+      <div>${p}</div>
+    </div>`).join('');
+  tip.innerHTML = ios
+    ? '💡 Si usas Chrome en iPhone, primero abre el link en <strong>Safari</strong> — Apple solo permite instalar desde ahí.'
+    : '💡 Si no ves la opción, es porque abriste el link <strong>dentro de otra app</strong> (Instagram, WhatsApp, Facebook). Toca los tres puntos y elige "Abrir en Chrome".';
+
+  overlay.classList.add('show');
+}
+
+function hideInstallGuide() {
+  document.getElementById('install-overlay').classList.remove('show');
 }
 
 // ===================================================
 // VIEWS
 // ===================================================
+// Alterna la vista activa. Distingue dos tipos:
+//   pestaña → conserva encabezado y barra inferior, y marca su botón
+//   sheet   → pantalla completa; el <body> lleva .sheet-open y el CSS esconde
+//             el encabezado, la píldora de aniversario y la barra
+// Cada pestaña se repinta al entrar porque los datos pueden haber cambiado
+// mientras la creadora estaba en otra (guardar un producto, editar la marca).
 function showView(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  const anterior = document.querySelector('.view.active');
+  const previa = anterior ? anterior.id : '';
+
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  window.scrollTo(0,0);
+  el.classList.add('active');
+
+  const isTab = TAB_VIEWS.includes(id);
+  document.body.classList.toggle('sheet-open', !isTab);
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.view === id);
+  });
+
+  // Al salir de "Tu marca" se vuelca el formulario al estado. Sin esto,
+  // cambiar de pestaña y volver repintaba los campos desde el estado viejo y
+  // se perdía lo que la creadora llevaba escrito.
+  if (previa === 'view-brand' && id !== 'view-brand' && typeof captureBrandForm === 'function') {
+    captureBrandForm();
+  }
+
+  if (id === 'view-home')     renderHome();
+  if (id === 'view-products') renderProducts();
+  // Las dos vistas del Estudio las pinta studio.js, que se carga después.
+  if (id === 'view-studio-hub' && typeof renderStudioHub === 'function') renderStudioHub();
+  // renderBrandForm y no openBrand: openBrand llama a showView y entraría en bucle.
+  if (id === 'view-brand' && typeof renderBrandForm === 'function') {
+    renderBrandForm(); renderRateRow(); renderFixedRow(); renderInstallRow();
+  }
+
+  // 'instant', no 'auto': según la especificación, `auto` significa "usa el
+  // scroll-behavior calculado", que aquí es el `smooth` de la hoja de estilos.
+  // Cambiar de vista lanzaba entonces una animación de vuelta arriba con el
+  // contenido ya sustituido, y esa animación seguía corriendo después, pisando
+  // cualquier desplazamiento posterior.
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+// Abre la guía en una sección concreta. Sin argumento deja abierta la primera,
+// que es el estado natural al entrar por el botón "?".
+function openHelp(sectionId) {
+  showView('view-help');
+  const secciones = document.querySelectorAll('.help-section');
+  secciones.forEach(s => s.classList.remove('open'));
+
+  const destino = sectionId ? document.getElementById(sectionId) : secciones[0];
+  if (!destino) return;
+  destino.classList.add('open');
+  if (!sectionId) return;
+
+  // Nada de esperar a un fotograma: abrir la sección es solo añadir una clase,
+  // y leer getBoundingClientRect() ya fuerza el recálculo del diseño, así que
+  // la posición de aquí es la definitiva. Con requestAnimationFrame, una
+  // pestaña en segundo plano o con el pintado limitado no ejecutaba el salto
+  // y la guía se quedaba arriba, como si el enlace no hubiera hecho nada.
+  //
+  // `behavior:'instant'` también es deliberado: anula el
+  // `scroll-behavior: smooth` de la hoja de estilos. Ojo, 'auto' NO sirve —
+  // según la especificación significa "usa el scroll-behavior calculado", o
+  // sea el suave. La creadora acaba de tocar una tarjeta y espera ver la
+  // respuesta, no un planeo de 600 px.
+  const y = destino.getBoundingClientRect().top + window.scrollY - 14;
+  window.scrollTo({ top: Math.max(0, y), behavior: 'instant' });
 }
 
 // ===================================================
-// HOME
+// VOLVER AL INICIO (logotipo)
 // ===================================================
-function renderHome() {
-  const list = document.getElementById('products-list');
-  const statsRow = document.getElementById('stats-row');
-  const listTitle = document.getElementById('list-title');
+// El logotipo es el "botón de casa" y está en todas las pantallas. Como la
+// calculadora, el resultado, el detalle, la marca y el Estudio no persisten
+// nada hasta que se pulsa Guardar, salir de ahí de un toque perdería trabajo:
+// por eso pregunta antes.
+async function goHome() {
+  const activa = document.querySelector('.view.active');
+  const id = activa ? activa.id : '';
 
-  const studioCard = document.getElementById('studio-card');
+  if (id === 'view-studio-edit') {
+    if (STUDIO.piece && !STUDIO._saved) {
+      const ok = await confirmDialog({
+        icon: '📸',
+        title: '¿Salir sin guardar tu publicación?',
+        message: 'Todavía no la has descargado ni compartido. Si sales ahora, se pierde la foto y el encuadre.',
+        confirmText: 'Ir al inicio',
+        cancelText: 'Seguir editando',
+        dangerous: true
+      });
+      if (!ok) return;
+    }
+    studioDispose();   // libera el canvas y las fotos antes de irse
+    showView('view-home');
+    return;
+  }
+
+  const aviso = trabajoPendiente(id);
+  if (aviso) {
+    const ok = await confirmDialog({
+      icon: '📝',
+      title: aviso.title,
+      message: aviso.message,
+      confirmText: 'Ir al inicio',
+      cancelText: 'Seguir aquí',
+      dangerous: true
+    });
+    if (!ok) return;
+  }
+  showView('view-home');
+}
+
+// Devuelve {title, message} si hay trabajo sin guardar en esta vista, o null.
+function trabajoPendiente(id) {
+  if (id === 'view-calc') {
+    // "inp-units" no cuenta: viene con 20 por defecto y nadie lo escribió.
+    const escritos = ['inp-name', 'inp-desc', 'inp-hours', 'inp-rate', 'inp-fixed']
+      .some(k => ((document.getElementById(k) || {}).value || '').trim());
+    const materiales = Array.from(document.querySelectorAll('.mat-name, .mat-cost'))
+      .some(i => (i.value || '').trim());
+    if (!escritos && !materiales) return null;
+    return {
+      title: '¿Salir del cálculo?',
+      message: 'Lo que llevas escrito se pierde: este producto todavía no está guardado.'
+    };
+  }
+
+  if (id === 'view-results') {
+    return {
+      title: '¿Salir sin guardar el producto?',
+      message: `"${S.p.name}" está calculado pero no guardado. Si sales ahora tendrás que calcularlo de nuevo.`
+    };
+  }
+
+  if (id === 'view-detail' && detTieneCambios()) {
+    return {
+      title: '¿Salir sin guardar los cambios?',
+      message: 'Editaste este producto y no pulsaste "Guardar cambios".'
+    };
+  }
+
+  if (id === 'view-brand' && typeof studioBrandDirty === 'function' && studioBrandDirty()) {
+    return {
+      title: '¿Salir sin guardar tu marca?',
+      message: 'Cambiaste algo y no pulsaste "Guardar mi marca". Tus publicaciones seguirán usando los datos anteriores.'
+    };
+  }
+
+  return null;
+}
+
+// ¿El detalle abierto difiere del producto guardado? Se compara contra el
+// producto real, no contra el borrador inicial: tocar y deshacer no cuenta.
+function detTieneCambios() {
+  const p = S.products.find(x => x.id === S._detId);
+  if (!p || !S._detDraft) return false;
+
+  const num = id => sanitizeNum(((document.getElementById(id) || {}).value));
+  const descEl = document.getElementById('det-desc');
+
+  return S._detDraft.crLvl !== p.crLvl
+      || S._detDraft.margin !== p.margin
+      || (S._detEmoji || '') !== (p.emoji || '')
+      || num('det-mat')    !== p.mat
+      || num('det-labor')  !== p.labor
+      || num('det-struct') !== p.struct
+      || (!!descEl && descEl.value.trim() !== (p.desc || ''));
+}
+
+// ===================================================
+// PESTAÑA CALCULAR
+// ===================================================
+// Solo los bloques que dependen de los productos guardados: las estadísticas
+// y el recordatorio de respaldo. La lista vive en su propia pestaña.
+function renderHome() {
+  const statsRow = document.getElementById('stats-row');
+  if (!statsRow) return;
 
   if (S.products.length === 0) {
     statsRow.style.display = 'none';
-    listTitle.style.display = 'none';
-    if (studioCard) studioCard.style.display = 'none';
+    renderBackupReminder();
+    return;
+  }
+
+  statsRow.style.display = 'grid';
+  document.getElementById('stat-count').textContent = S.products.length;
+  const avg = S.products.reduce((s,p) => s + p.idealP, 0) / S.products.length;
+  document.getElementById('stat-avg').textContent = fmtShort(avg);
+
+  renderBackupReminder();
+}
+
+// ===================================================
+// PESTAÑA PRODUCTOS
+// ===================================================
+// Compara sin acentos ni mayúsculas: quien busca "jabon" espera encontrar
+// "Jabón de lavanda".
+function normalizar(str) {
+  return String(str ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function renderProducts() {
+  const list  = document.getElementById('products-list');
+  const box   = document.getElementById('search-box');
+  const count = document.getElementById('products-count');
+  if (!list) return;
+
+  const total = S.products.length;
+
+  if (count) {
+    count.textContent = total === 0
+      ? 'Aún no guardas ninguno'
+      : `${total} guardado${total === 1 ? '' : 's'} en este teléfono`;
+  }
+  // El buscador solo aparece cuando hay lista que valga la pena filtrar. Al
+  // bajar del umbral se limpia también el campo: si no, el texto viejo
+  // reaparecería al guardar el cuarto producto y ocultaría media lista.
+  if (box) box.style.display = total >= 4 ? 'flex' : 'none';
+  if (total < 4) {
+    _search = '';
+    const inp = document.getElementById('inp-search');
+    if (inp) inp.value = '';
+  }
+
+  const clearBtn = document.getElementById('search-clear');
+  if (clearBtn) clearBtn.hidden = !_search;
+
+  if (total === 0) {
     list.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">🌱</div>
@@ -186,49 +552,84 @@ function renderHome() {
     return;
   }
 
-  statsRow.style.display = 'grid';
-  listTitle.style.display = 'block';
-  if (studioCard) studioCard.style.display = 'block';
-  document.getElementById('stat-count').textContent = S.products.length;
-  const avg = S.products.reduce((s,p) => s + p.idealP, 0) / S.products.length;
-  document.getElementById('stat-avg').textContent = fmtShort(avg);
+  const q = normalizar(_search.trim());
+  const visibles = q
+    ? S.products.filter(p => normalizar(p.name).includes(q) || normalizar(p.desc).includes(q))
+    : S.products;
 
-  list.innerHTML = S.products.map(p => `
+  if (visibles.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <p>Ningún producto coincide con «${esc(_search.trim())}».</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = visibles.map(p => `
     <div class="product-card" onclick="showDetail(${p.id})">
-      ${p.emoji ? `<div class="pc-emoji">${esc(p.emoji)}</div>` : ''}
+      <div class="pc-emoji">${p.emoji ? esc(p.emoji) : '🎨'}</div>
       <div class="pc-info">
         <div class="pc-name">${esc(p.name)}</div>
         ${p.desc ? `<div class="pc-desc">${esc(p.desc)}</div>` : ''}
-        <div class="pc-prices">Ideal: <strong>${fmt(p.idealP)}</strong><span class="iva-inline"> · c/IVA: <strong>${fmt(p.idealP*(1+IVA))}</strong></span></div>
+        <div class="pc-prices">
+          <span class="pc-price-val">${fmt(p.idealP * (1 + IVA))}</span>
+          <span class="pc-price-tag">c/IVA</span>
+        </div>
       </div>
       <div class="pc-actions">
-        <button class="pc-edit" onclick="showDetail(event,${p.id})" title="Editar">✏️</button>
+        <button class="pc-studio" onclick="event.stopPropagation();openStudio('historia',${p.id})" title="Publicar">📸</button>
         <button class="pc-delete" onclick="delProduct(event,${p.id})" title="Eliminar">🗑️</button>
       </div>
     </div>`).join('');
+}
 
-  renderBackupReminder();
+function filterProducts(value) {
+  _search = value || '';
+  renderProducts();
+}
+
+function clearSearch() {
+  _search = '';
+  const inp = document.getElementById('inp-search');
+  if (inp) inp.value = '';
+  renderProducts();
 }
 
 // ===================================================
-// ONBOARDING
+// BIENVENIDA DE ANIVERSARIO
 // ===================================================
-function renderOnboarding() {
-  const card = document.getElementById('onboard-card');
-  if (!card) return;
-  let done = false;
-  try { done = localStorage.getItem(KEY_ONBOARD) === '1'; } catch(e) {}
-  card.classList.toggle('show', !done);
+function initWelcome() {
+  let visto = false;
+  try { visto = localStorage.getItem(KEY_WELCOME) === '1'; } catch(e) {}
+  if (!visto) showWelcome();
 }
 
-function dismissOnboarding() {
-  try { localStorage.setItem(KEY_ONBOARD, '1'); } catch(e) {}
-  renderOnboarding();
+function showWelcome() {
+  const el = document.getElementById('welcome');
+  if (!el) return;
+  el.hidden = false;
+  // Sin esto, el fondo sigue desplazándose bajo la bienvenida en iOS.
+  document.body.style.overflow = 'hidden';
+  el.scrollTop = 0;
+}
+
+function dismissWelcome() {
+  const el = document.getElementById('welcome');
+  if (el) el.hidden = true;
+  document.body.style.overflow = '';
+  try { localStorage.setItem(KEY_WELCOME, '1'); } catch(e) {}
+}
+
+// "Probar con un ejemplo" desde la bienvenida
+function welcomeExample() {
+  dismissWelcome();
+  startCalcWithExample();
 }
 
 // Empieza la calculadora con un ejemplo pre-rellenado (jabón de lavanda).
 function startCalcWithExample() {
-  dismissOnboarding();
+  dismissWelcome();
   startCalc();
   const name = 'Jabón de lavanda 100g';
   document.getElementById('inp-name').value = name;
@@ -257,7 +658,7 @@ function duplicateProduct(id) {
   S.products.unshift(copy);
   if (!persistProducts()) return;
   toast('📋 Producto duplicado');
-  setTimeout(() => { renderHome(); showView('view-home'); }, 700);
+  setTimeout(() => { renderHome(); showView('view-products'); }, 700);
 }
 
 function shareWhatsApp(id) {
@@ -300,15 +701,31 @@ function resetState() {
   q('inp-desc').value = '';
   paintIconBtn('inp-emoji', '');
   q('inp-hours').value = '';
-  q('inp-rate').value = '';
-  q('inp-fixed').value = '';
-  q('inp-units').value = '20';
+  // El valor hora guardado se rellena solo si la creadora lo pidió. La fila de
+  // aviso del paso 2 explica de dónde salió el número.
+  if (S.rate && S.rate.remember) {
+    q('inp-rate').value = S.rate.rate;
+    S.p.rate = S.rate.rate;
+  } else {
+    q('inp-rate').value = '';
+  }
+  renderRateSaved();
+  // Los costos fijos siguen la misma regla que el valor hora: solo se rellenan
+  // si la creadora lo pidió, y la fila del paso 4 lo anuncia.
+  if (S.fixed && S.fixed.remember) {
+    q('inp-fixed').value = S.fixed.fixed;
+    q('inp-units').value = S.fixed.units;
+  } else {
+    q('inp-fixed').value = '';
+    q('inp-units').value = '20';
+  }
+  renderFixedSaved();
   q('labor-preview').style.display = 'none';
   q('mat-total').textContent = '$0';
   q('mat-list').innerHTML = `
     <div class="mat-row">
-      <input class="field-input mat-name" type="text" placeholder="ej: Aceite de coco" maxlength="60" autocomplete="off" style="--step-accent:var(--coral)">
-      <input class="field-input mat-cost" type="number" placeholder="$" min="0" max="99999999" inputmode="numeric" oninput="calcMatTotal()" style="--step-accent:var(--coral)">
+      <input class="field-input mat-name" type="text" placeholder="ej: Aceite de coco" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)">
+      <input class="field-input mat-cost" type="number" placeholder="$" min="0" max="99999999" inputmode="numeric" oninput="calcMatTotal()" style="--step-accent:var(--coral-deep)">
       <button class="btn-rem" onclick="remMat(this)">✕</button>
     </div>`;
 
@@ -354,14 +771,487 @@ function goStep(n) {
   window.scrollTo(0,0);
 }
 
+const STEP_NAMES = ['Materiales', 'Tu tiempo', 'Creatividad', 'Costos fijos'];
+
 function updateProg(n) {
-  document.getElementById('prog-label').textContent = `Paso ${n} de 4`;
+  document.getElementById('prog-step').textContent  = STEP_NAMES[n - 1] || '';
+  document.getElementById('prog-label').textContent = `${n} de 4`;
   for (let i = 1; i <= 4; i++) {
     const d = document.getElementById(`pd${i}`);
     d.className = 'pdot';
     if (i === n) d.classList.add('active');
     else if (i < n) d.classList.add('done');
   }
+}
+
+// ===================================================
+// ASISTENTE DE VALOR HORA
+// ===================================================
+// El paso 2 pide un número que casi nadie sabe responder. Este asistente llega
+// a él por partes: cuánto necesitas ganar, cuánto tiempo puedes dedicarle,
+// cuánto de ese tiempo se cobra y cuánto se lleva la previsión.
+//
+// Mientras la pantalla está abierta el estado vive en memoria (S.rate.draft) y
+// solo se persiste al pulsar "Usar este valor". Así salir de aquí no puede
+// perder nada guardado y no hace falta preguntar nada al volver.
+
+// Lo que sale de localStorage se reconstruye desde cero, igual que un producto
+// importado: puede venir de un respaldo ajeno o de una escritura a medias.
+function sanitizeRateProfile(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const num = (v, max, def) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, max) : def;
+  };
+  const deUnaLista = (v, lista, def) => lista.includes(Number(v)) ? Number(v) : def;
+
+  const inRaw  = (raw.inputs && typeof raw.inputs === 'object') ? raw.inputs : {};
+  const gaRaw  = (inRaw.gastos && typeof inRaw.gastos === 'object') ? inRaw.gastos : {};
+  const gastos = {};
+  for (const g of RATE_GASTOS) gastos[g.id] = num(gaRaw[g.id], MAX_INPUT_NUM, g.ref);
+
+  const inputs = {
+    mode:        inRaw.mode === 'directo' ? 'directo' : 'gastos',
+    gastos,
+    metaDirecta: num(inRaw.metaDirecta, MAX_INPUT_NUM, 0),
+    share:       deUnaLista(inRaw.share, [100, 50, 30], RATE_DEFAULTS.share),
+    days:        Math.min(7, Math.max(1, Math.round(num(inRaw.days, 7, RATE_DEFAULTS.days)))),
+    hoursDay:    Math.min(16, Math.max(0.5, num(inRaw.hoursDay, 16, RATE_DEFAULTS.hoursDay))),
+    focus:       deUnaLista(inRaw.focus, [50, 65, 80], RATE_DEFAULTS.focus),
+    taxOn:       inRaw.taxOn !== false,
+    tax:         num(inRaw.tax, 60, RATE_DEFAULTS.tax)
+  };
+
+  const rate = num(raw.rate, MAX_INPUT_NUM, 0);
+  if (rate <= 0) return null;
+
+  return {
+    rate: Math.round(rate),
+    remember: raw.remember !== false,
+    savedAt: num(raw.savedAt, Number.MAX_SAFE_INTEGER, 0),
+    inputs
+  };
+}
+
+function loadRate() {
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(KEY_RATE) || 'null'); } catch(e) {}
+  return sanitizeRateProfile(raw);
+}
+
+function saveRate(perfil) {
+  try {
+    localStorage.setItem(KEY_RATE, JSON.stringify(perfil));
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// Abre el asistente. `origen` es la vista a la que vuelve el ←: desde la guía o
+// desde "Tu marca" no tiene sentido aterrizar en la calculadora.
+function openRateWizard(origen) {
+  S.rateFrom = origen || 'view-calc';
+  // Se parte de lo que ya respondió, si respondió alguna vez.
+  S.rateDraft = S.rate
+    ? JSON.parse(JSON.stringify(S.rate.inputs))
+    : JSON.parse(JSON.stringify(RATE_DEFAULTS));
+  renderRateWizard();
+  showView('view-rate');
+}
+
+function closeRateWizard() {
+  showView(S.rateFrom || 'view-calc');
+}
+
+// Pinta las partes que dependen de los datos y vuelca el borrador a los campos.
+function renderRateWizard() {
+  const d = S.rateDraft;
+
+  document.getElementById('rate-rows').innerHTML = RATE_GASTOS.map(g => `
+    <div class="rate-row">
+      <label class="rate-row-lbl" for="rg-${g.id}">${g.lbl}</label>
+      <input class="rate-row-input" type="number" id="rg-${g.id}" data-gasto="${g.id}"
+             min="0" max="99999999" step="10000" inputmode="numeric"
+             value="${d.gastos[g.id]}" oninput="rateRecalc()">
+    </div>`).join('');
+
+  document.getElementById('rate-days').innerHTML = [1,2,3,4,5,6,7].map(n => `
+    <button type="button" class="rate-day${n === d.days ? ' sel' : ''}" data-days="${n}"
+            onclick="setRateDays(${n})" aria-label="${n} día${n > 1 ? 's' : ''} por semana">${n}</button>`).join('');
+
+  document.getElementById('rate-meta-directa').value = d.metaDirecta || '';
+  document.getElementById('rate-hours-day').value    = d.hoursDay;
+  document.getElementById('rate-tax-on').checked     = d.taxOn;
+  document.getElementById('rate-tax').value          = d.tax;
+  document.getElementById('rate-remember').checked   = S.rate ? S.rate.remember : true;
+
+  marcarChips('.rate-modes .m-btn',  b => b.dataset.mode  === d.mode);
+  marcarChips('.rate-shares .m-btn', b => Number(b.dataset.share) === d.share);
+  marcarChips('.rate-focus .m-btn',  b => Number(b.dataset.focus) === d.focus);
+
+  document.getElementById('rate-legal').textContent =
+    `Los montos sugeridos son una referencia para un hogar de Santiago (${RATE_REF_FECHA}) y están para que los cambies por los tuyos. El piso legal se calcula con el ingreso mínimo de ${fmt(RATE_MIN_MENSUAL)} y una jornada de ${RATE_MIN_JORNADA} horas semanales.`;
+
+  rateRecalc();
+}
+
+function marcarChips(selector, esActivo) {
+  document.querySelectorAll(selector).forEach(b => b.classList.toggle('active', esActivo(b)));
+}
+
+function setRateMode(mode) {
+  S.rateDraft.mode = mode === 'directo' ? 'directo' : 'gastos';
+  marcarChips('.rate-modes .m-btn', b => b.dataset.mode === S.rateDraft.mode);
+  rateRecalc();
+}
+
+function setRateShare(pct) {
+  S.rateDraft.share = pct;
+  marcarChips('.rate-shares .m-btn', b => Number(b.dataset.share) === pct);
+  rateRecalc();
+}
+
+function setRateDays(n) {
+  S.rateDraft.days = n;
+  document.querySelectorAll('.rate-day').forEach(b => {
+    b.classList.toggle('sel', Number(b.dataset.days) === n);
+  });
+  rateRecalc();
+}
+
+function setRateFocus(pct) {
+  S.rateDraft.focus = pct;
+  marcarChips('.rate-focus .m-btn', b => Number(b.dataset.focus) === pct);
+  rateRecalc();
+}
+
+// Lee los campos, recalcula y repinta todos los resultados. Se llama en cada
+// pulsación: ver el número moverse es la mitad de lo que enseña la pantalla.
+function rateRecalc() {
+  const d = S.rateDraft;
+  if (!d) return;
+
+  // Volcar los campos libres al borrador
+  document.querySelectorAll('[data-gasto]').forEach(i => {
+    d.gastos[i.dataset.gasto] = sanitizeNum(i.value);
+  });
+  d.metaDirecta = sanitizeNum(document.getElementById('rate-meta-directa').value);
+  d.hoursDay    = Math.min(16, sanitizeNum(document.getElementById('rate-hours-day').value));
+  d.taxOn       = document.getElementById('rate-tax-on').checked;
+  d.tax         = Math.min(60, sanitizeNum(document.getElementById('rate-tax').value));
+
+  const directo = d.mode === 'directo';
+  document.getElementById('rate-gastos').hidden  = directo;
+  document.getElementById('rate-directo').hidden = !directo;
+  document.getElementById('rate-tax-wrap').hidden = !d.taxOn;
+
+  const hogar = RATE_GASTOS.reduce((s, g) => s + (d.gastos[g.id] || 0), 0);
+  const meta  = directo ? d.metaDirecta : hogar * d.share / 100;
+
+  // Se redondean antes de dividir, no solo al pintarlas: si la pantalla dice
+  // "85 horas cobrables" y por dentro divide entre 84,5, quien rehaga la cuenta
+  // a mano no llega al mismo número y deja de fiarse de la app.
+  const horasMes  = Math.round(d.days * d.hoursDay * SEMANAS_MES);
+  const cobrables = Math.round(horasMes * d.focus / 100);
+  const conTax    = meta * (1 + (d.taxOn ? d.tax : 0) / 100);
+  // Un valor hora de $8.327 no lo escribe nadie: se redondea a la centena.
+  const valor = cobrables > 0 ? Math.round(conTax / cobrables / 100) * 100 : 0;
+
+  document.getElementById('rate-hogar').textContent       = fmt(hogar);
+  document.getElementById('rate-meta').textContent        = fmt(meta);
+  document.getElementById('rate-month-hours').textContent = horasMes;
+  document.getElementById('rate-billable').textContent    = cobrables;
+  document.getElementById('rate-value').textContent       = fmt(valor);
+
+  document.getElementById('rate-formula').textContent = cobrables > 0
+    ? `${fmt(meta)}${d.taxOn ? ` + ${d.tax}%` : ''} ÷ ${cobrables} horas cobrables`
+    : 'Dinos cuántas horas puedes dedicarle';
+
+  pintarPisoLegal(valor);
+  S.rateValue = valor;
+}
+
+// El aviso del piso legal es el corazón de la pantalla: si el número queda por
+// debajo del mínimo por hora, hay que decirlo sin rodeos.
+function pintarPisoLegal(valor) {
+  const caja = document.getElementById('rate-floor-note');
+  const hd   = document.getElementById('rate-floor-hd');
+  const txt  = document.getElementById('rate-floor-txt');
+
+  if (valor <= 0) {
+    caja.className = 'note-card note-card-blue';
+    hd.textContent = '💡 Falta un dato';
+    txt.textContent = 'Completa los bloques de arriba y aquí aparece tu valor hora.';
+    return;
+  }
+
+  if (valor < RATE_MIN_HORA) {
+    caja.className = 'note-card note-card-red';
+    hd.textContent = '⚠️ Estás bajo el mínimo legal';
+    txt.innerHTML = `Por hora, el sueldo mínimo en Chile equivale a unos <strong>${fmt(RATE_MIN_HORA)}</strong>. Tu resultado (${fmt(valor)}) queda por debajo: significa que estás pidiéndole a tu emprendimiento menos de lo que te pagaría cualquier empleo. Sube tu meta mensual o baja las horas que le dedicas.`;
+    return;
+  }
+
+  caja.className = 'note-card note-card-green';
+  hd.textContent = '✅ Por sobre el mínimo legal';
+  txt.innerHTML = `El sueldo mínimo por hora equivale a unos <strong>${fmt(RATE_MIN_HORA)}</strong>. Tu valor hora lo supera, que es justo lo que debe pasar: trabajar por tu cuenta tiene costos y riesgos que un sueldo no tiene.`;
+}
+
+// "Usar este valor": lo lleva al paso 2 y, si lo pidió, lo guarda para la
+// próxima vez.
+function applyRate() {
+  const valor = S.rateValue || 0;
+  if (valor <= 0) { toast('Completa los datos para obtener tu valor hora ⏰'); return; }
+
+  const recordar = document.getElementById('rate-remember').checked;
+  const perfil = {
+    rate: valor,
+    remember: recordar,
+    savedAt: Date.now(),
+    inputs: JSON.parse(JSON.stringify(S.rateDraft))
+  };
+
+  // El perfil se guarda siempre (para que el asistente recuerde sus montos);
+  // `remember` solo decide si el valor se rellena solo en cada producto nuevo.
+  S.rate = perfil;
+  const guardado = saveRate(perfil);
+
+  const campo = document.getElementById('inp-rate');
+  if (campo) { campo.value = valor; S.p.rate = valor; updateLaborPreview(); }
+  renderRateSaved();
+
+  if (!guardado) toast('⚠️ Valor aplicado, pero no se pudo recordar en este navegador');
+  else toast(recordar ? `✨ Tu valor hora: ${fmt(valor)}` : `✨ Valor aplicado: ${fmt(valor)}`);
+
+  // Si venía de la guía o de "Tu marca" no hay ningún cálculo esperando: se
+  // vuelve al origen. Desde el paso 2, ahí se queda.
+  showView(S.rateFrom === 'view-calc' ? 'view-calc' : S.rateFrom);
+}
+
+// Fila del paso 2 que anuncia el valor guardado. El número nunca aparece por
+// arte de magia: si el campo viene relleno, aquí se explica por qué.
+function renderRateSaved() {
+  const el = document.getElementById('rate-saved');
+  if (!el) return;
+  if (!S.rate || !S.rate.remember) { el.classList.remove('show'); return; }
+  el.querySelector('.rs-text').textContent = `Usas tu valor hora guardado: ${fmt(S.rate.rate)}`;
+  el.classList.add('show');
+}
+
+// Fila de la pestaña "Tu marca"
+function renderRateRow() {
+  const sub = document.getElementById('rate-row-sub');
+  if (!sub) return;
+  sub.textContent = S.rate
+    ? `${fmt(S.rate.rate)} por hora${S.rate.remember ? ' · se usa en cada producto' : ''}`
+    : 'Calcúlalo una vez y reutilízalo';
+}
+
+// ===================================================
+// ASISTENTE DE COSTOS FIJOS
+// ===================================================
+// El hermano del de valor hora, para el paso 4. Mismo esqueleto: borrador en
+// memoria, recálculo en vivo y persistencia solo al pulsar "Usar estos valores".
+//
+// La diferencia importante es conceptual: el asistente de valor hora deja fuera
+// a propósito los gastos de la casa, y aquí entra la parte de esa casa que
+// ocupa el taller. Entre los dos cubren el total sin contar nada dos veces.
+
+function sanitizeFixedProfile(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const num = (v, max, def) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, max) : def;
+  };
+
+  const inRaw = (raw.inputs && typeof raw.inputs === 'object') ? raw.inputs : {};
+  const leerLista = (lista, guardado) => {
+    const src = (guardado && typeof guardado === 'object') ? guardado : {};
+    const out = {};
+    for (const g of lista) out[g.id] = num(src[g.id], MAX_INPUT_NUM, g.ref);
+    return out;
+  };
+
+  const inputs = {
+    share:      [0, 10, 15, 25].includes(Number(inRaw.share)) ? Number(inRaw.share) : FIXED_DEFAULTS.share,
+    hogar:      leerLista(FIXED_HOGAR, inRaw.hogar),
+    negocio:    leerLista(FIXED_NEGOCIO, inRaw.negocio),
+    toolsValue: num(inRaw.toolsValue, MAX_INPUT_NUM, FIXED_DEFAULTS.toolsValue),
+    toolsYears: Math.min(20, Math.max(1, Math.round(num(inRaw.toolsYears, 20, FIXED_DEFAULTS.toolsYears)))),
+    units:      Math.min(100000, Math.max(1, Math.round(num(inRaw.units, 100000, FIXED_DEFAULTS.units))))
+  };
+
+  const fixed = num(raw.fixed, MAX_INPUT_NUM, -1);
+  if (fixed < 0) return null;
+
+  return {
+    fixed: Math.round(fixed),
+    units: inputs.units,
+    remember: raw.remember !== false,
+    savedAt: num(raw.savedAt, Number.MAX_SAFE_INTEGER, 0),
+    inputs
+  };
+}
+
+function loadFixed() {
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(KEY_FIXED) || 'null'); } catch(e) {}
+  return sanitizeFixedProfile(raw);
+}
+
+function saveFixed(perfil) {
+  try {
+    localStorage.setItem(KEY_FIXED, JSON.stringify(perfil));
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+function openFixedWizard(origen) {
+  S.fixedFrom = origen || 'view-calc';
+
+  if (S.fixed) {
+    S.fixedDraft = JSON.parse(JSON.stringify(S.fixed.inputs));
+    S.fixedSembrado = false;
+  } else {
+    S.fixedDraft = JSON.parse(JSON.stringify(FIXED_DEFAULTS));
+    // Si ya calculó su valor hora, el arriendo y las cuentas están dichos: se
+    // reutilizan en vez de pedirle lo mismo otra vez.
+    S.fixedSembrado = false;
+    if (S.rate && S.rate.inputs && S.rate.inputs.gastos) {
+      for (const g of FIXED_HOGAR) {
+        const v = S.rate.inputs.gastos[g.desdeRate];
+        if (Number.isFinite(v) && v > 0) { S.fixedDraft.hogar[g.id] = v; S.fixedSembrado = true; }
+      }
+    }
+  }
+
+  renderFixedWizard();
+  showView('view-fixed');
+}
+
+function closeFixedWizard() {
+  showView(S.fixedFrom || 'view-calc');
+}
+
+function renderFixedWizard() {
+  const d = S.fixedDraft;
+
+  const fila = (g, grupo) => `
+    <div class="rate-row">
+      <label class="rate-row-lbl" for="fx-${grupo}-${g.id}">${g.lbl}</label>
+      <input class="rate-row-input" type="number" id="fx-${grupo}-${g.id}"
+             data-fixed="${grupo}" data-fid="${g.id}"
+             min="0" max="99999999" step="1000" inputmode="numeric"
+             value="${d[grupo][g.id]}" oninput="fixedRecalc()">
+    </div>`;
+
+  document.getElementById('fixed-home-rows').innerHTML = FIXED_HOGAR.map(g => fila(g, 'hogar')).join('');
+  document.getElementById('fixed-biz-rows').innerHTML  = FIXED_NEGOCIO.map(g => fila(g, 'negocio')).join('');
+
+  document.getElementById('fixed-home-origen').textContent = S.fixedSembrado
+    ? 'Tomados de lo que respondiste en tu valor hora. Cámbialos si aquí no calzan.'
+    : 'Lo que pagas por tu casa, completo. Abajo se aplica solo la parte del negocio.';
+
+  document.getElementById('fixed-tools-value').value = d.toolsValue;
+  document.getElementById('fixed-tools-years').value = d.toolsYears;
+  document.getElementById('fixed-units').value       = d.units;
+  document.getElementById('fixed-remember').checked  = S.fixed ? S.fixed.remember : true;
+
+  marcarChips('.fixed-shares .m-btn', b => Number(b.dataset.fshare) === d.share);
+
+  document.getElementById('fixed-legal').textContent =
+    `Los montos sugeridos son una referencia (${RATE_REF_FECHA}) para que la pantalla no empiece en blanco: cámbialos por los tuyos. Lo que aquí no entre, no lo estará cobrando ningún producto.`;
+
+  fixedRecalc();
+}
+
+function setFixedShare(pct) {
+  S.fixedDraft.share = pct;
+  marcarChips('.fixed-shares .m-btn', b => Number(b.dataset.fshare) === pct);
+  fixedRecalc();
+}
+
+function fixedRecalc() {
+  const d = S.fixedDraft;
+  if (!d) return;
+
+  document.querySelectorAll('[data-fixed]').forEach(i => {
+    d[i.dataset.fixed][i.dataset.fid] = sanitizeNum(i.value);
+  });
+  d.toolsValue = sanitizeNum(document.getElementById('fixed-tools-value').value);
+  d.toolsYears = Math.min(20, Math.max(1, Math.round(sanitizeNum(document.getElementById('fixed-tools-years').value) || 1)));
+  d.units      = Math.min(100000, Math.max(1, Math.round(sanitizeNum(document.getElementById('fixed-units').value) || 1)));
+
+  const hogarBruto = FIXED_HOGAR.reduce((s, g) => s + (d.hogar[g.id] || 0), 0);
+  const hogar   = Math.round(hogarBruto * d.share / 100);
+  const negocio = FIXED_NEGOCIO.reduce((s, g) => s + (d.negocio[g.id] || 0), 0);
+  const tools   = Math.round(d.toolsValue / (d.toolsYears * 12));
+  const total   = hogar + negocio + tools;
+  const porUnidad = Math.round(total / d.units);
+
+  document.getElementById('fixed-home-total').textContent  = fmt(hogar);
+  document.getElementById('fixed-biz-total').textContent   = fmt(negocio);
+  document.getElementById('fixed-tools-total').textContent = fmt(tools);
+  document.getElementById('fixed-value').textContent       = fmt(total);
+  document.getElementById('fixed-formula').textContent     =
+    `${fmt(hogar)} de tu casa + ${fmt(negocio)} del negocio + ${fmt(tools)} de herramientas`;
+
+  document.getElementById('fixed-note').innerHTML = total > 0
+    ? `Repartidos entre <strong>${d.units} unidades</strong> al mes, cada producto carga <strong>${fmt(porUnidad)}</strong>. Si no los cobras, ese dinero sale de tu bolsillo todos los meses, vendas o no vendas.`
+    : 'Aunque trabajes desde tu casa y con lo que ya tienes, algo te cuesta: la luz que gastas, el internet, el transporte a comprar materiales. Si aquí va cero, lo estás pagando tú.';
+
+  S.fixedValue = total;
+  S.fixedUnits = d.units;
+}
+
+function applyFixed() {
+  const total = S.fixedValue || 0;
+  const units = S.fixedUnits || 1;
+
+  const recordar = document.getElementById('fixed-remember').checked;
+  const perfil = {
+    fixed: total,
+    units,
+    remember: recordar,
+    savedAt: Date.now(),
+    inputs: JSON.parse(JSON.stringify(S.fixedDraft))
+  };
+
+  S.fixed = perfil;
+  const guardado = saveFixed(perfil);
+
+  const campoF = document.getElementById('inp-fixed');
+  const campoU = document.getElementById('inp-units');
+  if (campoF) campoF.value = total;
+  if (campoU) campoU.value = units;
+  renderFixedSaved();
+
+  if (!guardado) toast('⚠️ Valores aplicados, pero no se pudieron recordar en este navegador');
+  else toast(`✨ Costos fijos: ${fmt(total)} al mes`);
+
+  showView(S.fixedFrom === 'view-calc' ? 'view-calc' : S.fixedFrom);
+}
+
+function renderFixedSaved() {
+  const el = document.getElementById('fixed-saved');
+  if (!el) return;
+  if (!S.fixed || !S.fixed.remember) { el.classList.remove('show'); return; }
+  el.querySelector('.rs-text').textContent =
+    `Usas tus costos guardados: ${fmt(S.fixed.fixed)} entre ${S.fixed.units} unidades`;
+  el.classList.add('show');
+}
+
+function renderFixedRow() {
+  const sub = document.getElementById('fixed-row-sub');
+  if (!sub) return;
+  sub.textContent = S.fixed
+    ? `${fmt(S.fixed.fixed)} al mes · ${S.fixed.units} unidades`
+    : 'Calcúlalos una vez y reutilízalos';
 }
 
 // ===================================================
@@ -372,8 +1262,8 @@ function addMat() {
   const row = document.createElement('div');
   row.className = 'mat-row';
   row.innerHTML = `
-    <input class="field-input mat-name" type="text" placeholder="ej: Fragancia" maxlength="60" autocomplete="off" style="--step-accent:var(--coral)">
-    <input class="field-input mat-cost" type="number" placeholder="$" min="0" max="99999999" inputmode="numeric" oninput="calcMatTotal()" style="--step-accent:var(--coral)">
+    <input class="field-input mat-name" type="text" placeholder="ej: Fragancia" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)">
+    <input class="field-input mat-cost" type="number" placeholder="$" min="0" max="99999999" inputmode="numeric" oninput="calcMatTotal()" style="--step-accent:var(--coral-deep)">
     <button class="btn-rem" onclick="remMat(this)">✕</button>`;
   list.appendChild(row);
   row.querySelector('input').focus();
@@ -454,6 +1344,7 @@ function renderResults() {
   document.getElementById('res-min-iva').textContent    = fmt(r.minP * (1 + IVA));
   document.getElementById('res-ideal').textContent      = fmt(r.idealP);
   document.getElementById('res-ideal-iva').textContent  = fmt(r.idealP * (1 + IVA));
+  document.getElementById('res-margin-lbl').textContent = S.p.margin;
   document.getElementById('confetti-emoji').textContent = getEmoji(S.p.name);
 
   renderBars(r);
@@ -462,10 +1353,10 @@ function renderResults() {
 
 function renderBars(r) {
   const bars = [
-    { e:'🧺', lbl:'Materiales',    val:r.mat,    c:'#FF6B6B' },
-    { e:'⏰', lbl:'Tu tiempo',      val:r.labor,  c:'#4D96FF' },
-    { e:'🎨', lbl:'Creatividad',    val:r.cr,     c:'#C77DFF' },
-    { e:'🏠', lbl:'Costos fijos',   val:r.struct, c:'#6BCB77' },
+    { e:'🧺', lbl:'Materiales',   val:r.mat,    c1:'#FF8A7A', c2:'#FF6B6B' },
+    { e:'⏰', lbl:'Tu tiempo',     val:r.labor,  c1:'#6BA9FF', c2:'#4D96FF' },
+    { e:'🎨', lbl:'Creatividad',   val:r.cr,     c1:'#DFA8FF', c2:'#C77DFF' },
+    { e:'🏠', lbl:'Costos fijos',  val:r.struct, c1:'#8FDB99', c2:'#3BA55C' },
   ];
   const minP = r.minP;
   document.getElementById('bar-items').innerHTML = bars.map(b => {
@@ -474,10 +1365,10 @@ function renderBars(r) {
       <div class="bar-item">
         <div class="bar-header">
           <div class="bar-lbl"><span class="bar-lbl-emoji">${b.e}</span>${b.lbl}</div>
-          <div class="bar-val">${fmt(b.val)} (${pct}%)</div>
+          <div class="bar-val">${fmt(b.val)} · ${pct}%</div>
         </div>
         <div class="bar-track">
-          <div class="bar-fill" data-w="${pct}" style="background:${b.c}; width:0"></div>
+          <div class="bar-fill" data-w="${pct}" style="background:linear-gradient(90deg,${b.c1},${b.c2}); width:0"></div>
         </div>
       </div>`;
   }).join('');
@@ -499,14 +1390,17 @@ function setMargin(btn) {
   btn.classList.add('active');
   S.p.margin = parseInt(btn.dataset.m);
   const r = calc();
-  document.getElementById('res-ideal').textContent     = fmt(r.idealP);
-  document.getElementById('res-ideal-iva').textContent = fmt(r.idealP * (1 + IVA));
+  document.getElementById('res-ideal').textContent      = fmt(r.idealP);
+  document.getElementById('res-ideal-iva').textContent  = fmt(r.idealP * (1 + IVA));
+  document.getElementById('res-margin-lbl').textContent = S.p.margin;
 }
 
 // ===================================================
 // SAVE
 // ===================================================
-function saveProduct() {
+// Devuelve el id del producto creado, o null si no se pudo guardar.
+// `silencioso` lo usa publishFromResults(), que encadena con el Estudio.
+function saveProduct(silencioso) {
   const r = calc();
   const prod = {
     id:     nextProductId(),
@@ -526,10 +1420,29 @@ function saveProduct() {
     crLvl:  S.p.cr
   };
   S.products.unshift(prod);
-  if (!persistProducts()) return;
+  // Si el almacenamiento falla hay que deshacer: dejarlo en memoria haría creer
+  // que se guardó, y el siguiente arranque lo perdería sin avisar.
+  if (!persistProducts()) {
+    S.products = S.products.filter(x => x.id !== prod.id);
+    return null;
+  }
   renderHome();
-  toast('✨ ¡Producto guardado!');
-  setTimeout(() => showView('view-home'), 1400);
+  renderProducts();
+  if (!silencioso) {
+    toast('✨ ¡Producto guardado!');
+    setTimeout(() => showView('view-products'), 1400);
+  }
+  return prod.id;
+}
+
+// "Crear la publicación" desde la pantalla de resultados. El Estudio trabaja
+// sobre productos guardados, así que primero se guarda y luego se abre el
+// editor con el id recién creado — sin el toast ni el salto a la lista.
+function publishFromResults() {
+  const id = saveProduct(true);
+  if (id == null) return;
+  toast('✨ Producto guardado');
+  openStudio('historia', id);
 }
 
 function delProduct(e, id) {
@@ -548,6 +1461,7 @@ function delProduct(e, id) {
     S.products = S.products.filter(p => p.id !== id);
     if (!persistProducts()) return;
     renderHome();
+    renderProducts();
     toast('🗑️ Producto eliminado');
   });
 }
@@ -563,7 +1477,6 @@ function showDetail(idOrEvent, id) {
   }
   const p = S.products.find(p => p.id === realId);
   if (!p) return;
-  document.getElementById('det-title').textContent = p.name;
 
   const crOpts = [
     { val:'facil',    e:'😊', lbl:'Fácil' },
@@ -587,49 +1500,58 @@ function showDetail(idOrEvent, id) {
   // siguiente persistProducts() (guardar otro producto, borrar, importar) lo
   // escribiría a disco: un producto que dice "margen 120%" con el precio
   // calculado al 50%.
+  S._detId    = realId;
   S._detEmoji = p.emoji || '';
   S._detDraft = { crLvl: p.crLvl, margin: p.margin };
 
   document.getElementById('det-body').innerHTML = `
-    <div class="detail-emoji-wrap">
-      <button type="button" class="icon-picker-btn big" onclick="openIconPicker('det-emoji-btn')"
-              id="det-emoji-btn" title="Cambiar el icono">
-        <span class="icon-picker-glyph${p.emoji ? '' : ' empty'}" id="det-emoji">${p.emoji ? esc(p.emoji) : '＋'}</span>
-      </button>
+    <div class="detail-head">
+      <div class="detail-emoji-wrap">
+        <button type="button" class="icon-picker-btn big" onclick="openIconPicker('det-emoji-btn')"
+                id="det-emoji-btn" title="Cambiar el icono">
+          <span class="icon-picker-glyph${p.emoji ? '' : ' empty'}" id="det-emoji">${p.emoji ? esc(p.emoji) : '＋'}</span>
+        </button>
+      </div>
+      <div>
+        <div class="detail-pname" id="det-pname">${esc(p.name)}</div>
+        <div class="detail-date">Guardado el ${p.date}</div>
+      </div>
     </div>
-    <div class="detail-pname" id="det-pname">${esc(p.name)}</div>
-    <div class="detail-date">Guardado el ${p.date}</div>
 
-    <!-- PRICES -->
-    <div class="price-duo" style="padding:0; margin-bottom:20px">
-      <div class="price-box price-box-floor">
-        <div class="pb-tag">Precio Mínimo</div>
-        <div class="pb-val" id="det-min">${fmt(p.minP)}</div>
-        <div class="iva-row">
-          <span class="iva-val" id="det-min-iva">${fmt(p.minP* (1 + IVA))}</span>
-          <span class="iva-badge">c/IVA</span>
-        </div>
-        <div class="pb-note" style="color:var(--muted); margin-top:5px">Tu suelo</div>
-      </div>
-      <div class="price-box price-box-ideal">
-        <div class="pb-tag">Precio Ideal</div>
-        <div class="pb-val" id="det-ideal">${fmt(p.idealP)}</div>
-        <div class="iva-row">
-          <span class="iva-val" id="det-ideal-iva">${fmt(p.idealP* (1 + IVA))}</span>
-          <span class="iva-badge">c/IVA</span>
-        </div>
-        <div class="pb-note" style="margin-top:5px">Margen <span id="det-margin-lbl">${p.margin}</span>%</div>
-      </div>
+    <!-- PRECIOS -->
+    <div class="price-hero">
+      <div class="ph-tag">Precio ideal · con IVA</div>
+      <div class="ph-val" id="det-ideal-iva">${fmt(p.idealP * (1 + IVA))}</div>
+      <div class="ph-note">Neto <strong id="det-ideal">${fmt(p.idealP)}</strong> · margen <strong id="det-margin-lbl">${p.margin}</strong>%</div>
     </div>
+
+    <div class="price-floor">
+      <div class="pf-text">
+        <div class="pf-tag">Precio mínimo</div>
+        <div class="pf-val" id="det-min-iva">${fmt(p.minP * (1 + IVA))}</div>
+        <div class="pf-net">Neto <span id="det-min">${fmt(p.minP)}</span></div>
+      </div>
+      <div class="pf-note">Tu suelo, IVA incluido.</div>
+    </div>
+
+    <!-- PUBLICAR -->
+    <button type="button" class="det-publish" onclick="openStudio('historia',${realId})">
+      <span class="dp-ico">📸</span>
+      <span class="dp-text">
+        <span class="dp-title">Publicar este producto</span>
+        <span class="dp-sub">Historia lista con este precio</span>
+      </span>
+      <span class="dp-arrow">→</span>
+    </button>
 
     <!-- MARGEN -->
     <div class="margin-section" style="padding:0; margin-bottom:20px">
-      <div class="margin-lbl">📈 Ajustar margen de ganancia</div>
+      <div class="margin-lbl">Margen de ganancia</div>
       <div class="margin-btns" id="det-margin-btns">${marginBtns}</div>
     </div>
 
     <!-- DESCRIPCIÓN -->
-    <div class="det-edit-section" style="margin-bottom:16px">
+    <div class="det-edit-section">
       <div class="det-edit-title">📝 Descripción</div>
       <p class="det-edit-hint">Es la que aparece en tus publicaciones.</p>
       <textarea class="field-input field-textarea" id="det-desc" rows="2" maxlength="${MAX_DESC_LEN}"
@@ -638,7 +1560,7 @@ function showDetail(idOrEvent, id) {
 
     <!-- EDITAR COMPOSICIÓN -->
     <div class="det-edit-section">
-      <div class="det-edit-title">✏️ Editar composición del precio</div>
+      <div class="det-edit-title">Composición del precio</div>
 
       <div class="det-field-row">
         <div class="det-field-lbl">🧺 Materiales</div>
@@ -653,19 +1575,18 @@ function showDetail(idOrEvent, id) {
         <input class="det-field-input" type="number" id="det-struct" value="${p.struct}" min="0" max="99999999" inputmode="numeric" oninput="detRecalc(${realId})">
       </div>
 
-      <div class="field-label" style="margin-top:14px; margin-bottom:10px">🎨 Carga creativa</div>
+      <div class="field-label" style="margin-top:18px; margin-bottom:10px">🎨 Carga creativa</div>
       <div class="det-cr-grid" id="det-cr-grid">${crGrid}</div>
     </div>
 
-    <!-- SAVE + ACCIONES -->
-    <div style="padding-bottom:12px">
-      <button class="btn-det-save" onclick="saveDetProduct(${realId})">💾 Guardar cambios</button>
+    <!-- GUARDAR + ACCIONES -->
+    <div style="padding-bottom:16px">
+      <button class="btn-det-save" onclick="saveDetProduct(${realId})">Guardar cambios</button>
       <div class="det-secondary-actions">
         <button class="btn-det-secondary btn-whatsapp" onclick="shareWhatsApp(${realId})">${ICONS.whatsapp}<span>WhatsApp</span></button>
         <button class="btn-det-secondary" onclick="duplicateProduct(${realId})">📋 Duplicar</button>
-        <button class="btn-det-secondary btn-studio" onclick="openStudio('historia',${realId})">📸 Publicar</button>
       </div>
-      <button class="btn-new-calc" onclick="showView('view-home')" style="width:100%">← Volver al inicio</button>
+      <button class="btn-new-calc" onclick="showView('view-products')" style="width:100%">← Volver a mis productos</button>
     </div>`;
 
   showView('view-detail');
@@ -729,10 +1650,12 @@ function saveDetProduct(id) {
     cr:Math.round(cr), minP:Math.round(minP), idealP:Math.round(idealP)
   };
   S._detDraft = null;
+  S._detId    = null;
   if (!persistProducts()) return;
   renderHome();
+  renderProducts();
   toast('✨ ¡Cambios guardados!');
-  setTimeout(() => showView('view-home'), 1400);
+  setTimeout(() => showView('view-products'), 1400);
 }
 
 // ===================================================
@@ -758,18 +1681,21 @@ function persistProducts() {
 // BACKUP — EXPORT / IMPORT
 // ===================================================
 function exportData() {
-  // Desde v2 el respaldo también lleva el perfil de marca, así que vale la
-  // pena exportar aunque todavía no haya productos guardados.
-  if (S.products.length === 0 && !studioHasBrand()) {
+  // Desde v2 el respaldo lleva el perfil de marca, desde v3 el valor hora y
+  // desde v4 los costos fijos, así que vale la pena exportar aunque todavía no
+  // haya productos.
+  if (S.products.length === 0 && !studioHasBrand() && !S.rate && !S.fixed) {
     toast('⚠️ No hay productos para exportar');
     return;
   }
   const payload = {
     app: 'PrecioCrea',
-    version: 2,
+    version: 4,
     exportDate: new Date().toLocaleDateString('es-CL'),
     products: S.products,
-    brand: studioBrandOrDefault()
+    brand: studioBrandOrDefault(),
+    rate: S.rate || null,
+    fixed: S.fixed || null
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
@@ -899,9 +1825,44 @@ function importData(input) {
         if (b && b.name) { studioApplyImportedBrand(b); brandImported = true; }
       }
 
+      // El valor hora entra igual: antes que los productos y tolerando los
+      // respaldos v1 y v2, que no lo traen.
+      let rateImported = false;
+      if (data && data.rate) {
+        const r = sanitizeRateProfile(data.rate);
+        if (r) {
+          S.rate = r;
+          saveRate(r);
+          renderRateSaved();
+          renderRateRow();
+          rateImported = true;
+        }
+      }
+
+      let fixedImported = false;
+      if (data && data.fixed) {
+        const f = sanitizeFixedProfile(data.fixed);
+        if (f) {
+          S.fixed = f;
+          saveFixed(f);
+          renderFixedSaved();
+          renderFixedRow();
+          fixedImported = true;
+        }
+      }
+
       const rawList = Array.isArray(data) ? data : (data && Array.isArray(data.products) ? data.products : []);
       if (!rawList.length) {
-        toast(brandImported ? '🎨 Se importaron los datos de tu marca' : '⚠️ El archivo no tiene productos');
+        // Un respaldo sin productos puede traer igualmente la marca o el valor
+        // hora, y en ese caso sí sirvió de algo.
+        const traido = [
+          brandImported && 'tu marca',
+          rateImported  && 'tu valor hora',
+          fixedImported && 'tus costos fijos'
+        ].filter(Boolean);
+        toast(traido.length
+          ? `✅ Se importó ${traido.join(' y ')}`
+          : '⚠️ El archivo no tiene productos');
         input.value=''; return;
       }
 
@@ -927,6 +1888,7 @@ function importData(input) {
       S.products = [...newOnes, ...S.products];
       if (!persistProducts()) { input.value = ''; return; }
       renderHome();
+      renderProducts();
       toast(`✅ ${newOnes.length} producto(s) importado/s`);
     } catch(err) {
       toast('❌ Archivo inválido');
