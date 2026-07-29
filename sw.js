@@ -13,7 +13,7 @@
 //
 // Regla: si tocas index.html, css/ o js/, sube BUILD. Siempre.
 const VERSION = '2.0.1';
-const BUILD   = 5;
+const BUILD   = 6;
 const CACHE = `preciocrea-${VERSION}-b${BUILD}`;
 const ASSETS = [
   './',

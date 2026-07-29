@@ -98,13 +98,16 @@ $80.000/30 u) sigue dando mínimo $28.162 e ideal $42.243.
   `confirmDialog` no puede quedarse trabado si algo lanza a medio armar; el
   selector de icono no duplica listeners al abrirse dos veces; la bienvenida no
   reaparece en la misma sesión con el almacenamiento bloqueado; el editor del
-  Estudio vacía su marcado al cerrarse; los avisos de los asistentes explican
-  por qué el arriendo aparece en ambos con proporciones distintas (es
-  intencional: sueldo objetivo vs. costo de producir).
+  Estudio vacía su marcado al cerrarse; los avisos de los asistentes aclaran
+  cómo se reparte el arriendo: en el valor hora van los gastos de la casa
+  completos (fijan el sueldo objetivo); en costos fijos, si la casa es también
+  el taller se cobra la fracción que este ocupa, y si el taller es arrendado
+  aparte, la fracción de la casa va en 0% y ese arriendo entra como gasto del
+  negocio — nunca los dos a la vez.
 
 ### Notas
 
-- `BUILD` sube a 5. Recordatorio para el hosting: `sw.js`, `index.html` y
+- `BUILD` sube a 6. Recordatorio para el hosting: `sw.js`, `index.html` y
   `manifest.webmanifest` deben servirse con `Cache-Control: no-cache` (se
   configura en el panel del proveedor, no en el repo).
 - Pendientes documentados para otra ronda: botón Atrás de Android
