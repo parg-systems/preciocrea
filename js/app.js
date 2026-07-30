@@ -841,8 +841,8 @@ function resetState() {
   q('mat-total').textContent = '$0';
   q('mat-list').innerHTML = `
     <div class="mat-row">
-      <input class="field-input mat-name" type="text" placeholder="ej: Aceite de coco" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)">
-      <input class="field-input mat-cost" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" data-input="calcMatTotal" style="--step-accent:var(--coral-deep)" aria-label="Costo del material">
+      <input class="field-input mat-name acc-coral" type="text" placeholder="ej: Aceite de coco" maxlength="60" autocomplete="off">
+      <input class="field-input mat-cost acc-coral" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" data-input="calcMatTotal" aria-label="Costo del material">
       <button class="btn-rem" data-action="remMat" aria-label="Quitar material">✕</button>
     </div>`;
 
@@ -1393,8 +1393,8 @@ function addMat() {
   const row = document.createElement('div');
   row.className = 'mat-row';
   row.innerHTML = `
-    <input class="field-input mat-name" type="text" placeholder="ej: Fragancia" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)">
-    <input class="field-input mat-cost" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" data-input="calcMatTotal" style="--step-accent:var(--coral-deep)" aria-label="Costo del material">
+    <input class="field-input mat-name acc-coral" type="text" placeholder="ej: Fragancia" maxlength="60" autocomplete="off">
+    <input class="field-input mat-cost acc-coral" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" data-input="calcMatTotal" aria-label="Costo del material">
     <button class="btn-rem" data-action="remMat" aria-label="Quitar material">✕</button>`;
   list.appendChild(row);
   row.querySelector('input').focus();
@@ -1502,10 +1502,18 @@ function renderBars(r) {
           <div class="bar-val">${fmt(b.val)} · ${pct}%</div>
         </div>
         <div class="bar-track">
-          <div class="bar-fill" data-w="${pct}" style="background:linear-gradient(90deg,${b.c1},${b.c2}); width:0"></div>
+          <div class="bar-fill" data-w="${pct}" data-c1="${b.c1}" data-c2="${b.c2}"></div>
         </div>
       </div>`;
   }).join('');
+
+  // El degradado y el ancho inicial se asignan por CSSOM: con la CSP estricta
+  // el marcado no puede llevar atributos de estilo. animateBars() anima luego
+  // el ancho hacia data-w, igual que siempre.
+  document.querySelectorAll('#bar-items .bar-fill').forEach(f => {
+    f.style.background = `linear-gradient(90deg, ${f.dataset.c1}, ${f.dataset.c2})`;
+    f.style.width = '0';
+  });
 }
 
 function animateBars() {
@@ -1698,7 +1706,7 @@ function showDetail(idOrEvent, id) {
     </button>
 
     <!-- MARGEN -->
-    <div class="margin-section" style="padding:0; margin-bottom:20px">
+    <div class="margin-section det-margin-plano">
       <div class="margin-lbl">Margen de ganancia</div>
       <div class="margin-btns" id="det-margin-btns">${marginBtns}</div>
     </div>
@@ -1728,18 +1736,18 @@ function showDetail(idOrEvent, id) {
         <input class="det-field-input" type="text" inputmode="numeric" id="det-struct" value="${p.struct}" maxlength="10" autocomplete="off" data-input="detRecalc" data-id="${realId}">
       </div>
 
-      <div class="field-label" style="margin-top:18px; margin-bottom:10px">🎨 Carga creativa</div>
+      <div class="field-label det-cr-titulo">🎨 Carga creativa</div>
       <div class="det-cr-grid" id="det-cr-grid">${crGrid}</div>
     </div>
 
     <!-- GUARDAR + ACCIONES -->
-    <div style="padding-bottom:16px">
+    <div class="det-pie">
       <button class="btn-det-save" data-action="saveDetProduct" data-id="${realId}">Guardar cambios</button>
       <div class="det-secondary-actions">
         <button class="btn-det-secondary btn-whatsapp" data-action="shareWhatsApp" data-id="${realId}">${ICONS.whatsapp}<span>WhatsApp</span></button>
         <button class="btn-det-secondary" data-action="duplicateProduct" data-id="${realId}">📋 Duplicar</button>
       </div>
-      <button class="btn-new-calc" data-action="showView" data-view="view-products" style="width:100%">← Volver a mis productos</button>
+      <button class="btn-new-calc u-full" data-action="showView" data-view="view-products">← Volver a mis productos</button>
     </div>`;
 
   showView('view-detail');

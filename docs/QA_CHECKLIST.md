@@ -203,7 +203,7 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 - [ ] Abrir `index.html` con doble clic: se puede crear y descargar una historia, sin errores en consola.
 - [ ] `node scripts/build-portable.js` termina sin error. Si falla, **no publicar**: significa que algo no se inlineó.
 - [ ] Buscar `<script src="js/` dentro de `preciocrea-portable.html`: **cero resultados**.
-- [ ] La meta CSP del **portable** dice `script-src 'self' 'unsafe-inline'` (su JS viaja inline; sin eso abre en blanco). La de `index.html` NO lleva `unsafe-inline` en script-src.
+- [ ] La meta CSP del **portable** dice `script-src 'self' 'unsafe-inline'` **y** `style-src 'self' 'unsafe-inline'` (su JS y su CSS viajan inline; sin eso abre en blanco o sin paleta). La de `index.html` NO lleva `unsafe-inline` en ninguna directiva.
 - [ ] Buscar `function fmt(n)` en el portable: la línea siguiente debe ser `return '$' + Math.round(n)…`, sin HTML incrustado.
 - [ ] Abrir el portable con doble clic y descargar una historia con foto.
 
@@ -211,7 +211,7 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 
 - [ ] Pie de la pestaña Calcular: "Creada con amor por **viviLoaiza.cl**…", **"Queda prohibida su venta o distribución comercial."**, el distintivo **© viviLoaiza.cl** y el aviso de marcas registradas (Spotify, WhatsApp, Android, Apple). Los cuatro deben estar.
 - [ ] Vista de Ayuda: al final aparece el bloque "Sobre la creadora" con los dos enlaces (sitio + Instagram), ambos abren en pestaña nueva.
-- [ ] Justo debajo, la línea de versión dice **«Versión 2.1.0 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**.
+- [ ] Justo debajo, la línea de versión dice **«Versión 2.1.1 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**.
 - [ ] IVA siempre activado: en la lista de productos, detalle, resultados y WhatsApp se ve el precio con IVA sin opción de ocultarlo.
 
 ## PWA
@@ -244,8 +244,9 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 - [ ] Crear un producto con nombre `<script>alert(1)</script>`: se muestra como texto, no ejecuta JS.
 - [ ] Importar un JSON donde `name` sea `<img src=x onerror=alert(1)>`: tampoco ejecuta.
 - [ ] Importar un JSON donde `emoji` sea `<s`: se muestra como texto en la lista y en el detalle.
-- [ ] **La CSP declara `script-src 'self'` sin `unsafe-inline`** y en DevTools → Console no aparece ningún `Refused to execute` durante el recorrido completo (calcular, guardar, editar, eliminar, importar, asistentes, marca, Estudio, tips, acordeón, modales).
-- [ ] `grep` de `onclick=`/`oninput=`/`onchange=` en `index.html` y `js/`: **cero resultados** (todo va por `data-action`/`data-input`/`data-change`).
+- [ ] **La CSP no contiene ningún `unsafe-inline`** (`script-src 'self'` y `style-src 'self'`) y en DevTools → Console no aparece ningún `Refused to execute`/`Refused to apply` durante el recorrido completo (calcular, guardar, editar, eliminar, importar, asistentes, marca, Estudio, tips, acordeón, modales).
+- [ ] `grep` de `onclick=`/`oninput=`/`onchange=`/`style="` en `index.html` y `js/`: **cero resultados** (eventos por `data-action`/`data-input`/`data-change`; estilos por clases o CSSOM).
+- [ ] Los 8 swatches de color de «Tu marca» y del editor se ven pintados (los pinta JS por CSSOM), y las barras del desglose de resultados tienen su degradado.
 - [ ] **Cero tráfico a terceros.** En la pestaña Network, tras un uso completo (calcular, guardar, publicar), **ninguna petición sale del propio dominio**. Ya no hay Google Fonts.
 - [ ] En la pestaña Network filtrando por `Font`: las tres tipografías se sirven desde `/assets/fonts/`.
 

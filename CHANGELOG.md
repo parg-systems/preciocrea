@@ -8,6 +8,29 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 
 ---
 
+## [2.1.1] — 2026-07-30 · CSP completamente estricta: adiós a los estilos en línea
+
+Se paga la última deuda de la CSP: los ~87 atributos de estilo en línea del
+marcado (estático y generado por innerHTML) se migraron a clases de
+`styles.css` — un bloque nuevo al final de la hoja: acentos de paso, fondos
+de iconos, chips, degradados de los botones «siguiente» y utilidades de
+espaciado. Los tres casos dinámicos (swatches de color de la marca y del
+editor, barras del desglose) se pintan ahora por CSSOM desde JS, que la CSP
+sí permite.
+
+- **`style-src` queda en `'self'` a secas**, igual que `script-src`: la CSP
+  completa ya no contiene ningún `'unsafe-inline'`.
+- El **portable** relaja ambas directivas vía `build-portable.js` (su JS y su
+  CSS viajan inline dentro del archivo), con guard que aborta el build si
+  alguna sustitución no ocurre.
+- Verificado en navegador: apariencia idéntica pantalla por pantalla (inicio,
+  calculadora, resultados con sus barras de color, marca con los 8 swatches,
+  asistentes con sus acentos, editor del Estudio), cero violaciones en
+  consola y continuidad de precios intacta. De paso se validó en vivo el
+  flujo del banner de actualización: el SW viejo sirvió la 2.1.0, el banner
+  apareció y «Recargar» activó la 2.1.1 limpiando el caché anterior.
+- `BUILD` sube a 8.
+
 ## [2.1.0] — 2026-07-30 · botón Atrás, CSP estricta y cierre de pendientes
 
 ### Añadido

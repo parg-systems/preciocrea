@@ -10,10 +10,11 @@
      script-src es 'self' a secas: desde la 2.1.0 no hay ni un manejador en
      línea — todos los controles usan data-action/data-input/data-change y la
      delegación de eventos de app.js. OJO: build-portable.js reescribe esta
-     meta en el archivo portable (allí el JS va inline y necesita
-     'unsafe-inline'). 'unsafe-inline' en style-src es deuda consciente: los
-     style="" de presentación siguen en el marcado. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'">
+     meta en el archivo portable (allí el JS y el CSS van inline y necesitan
+     'unsafe-inline'). style-src también es 'self' a secas desde la 2.1.1:
+     ningún elemento lleva atributo de estilo — lo puntual son clases de
+     styles.css y lo dinámico se asigna por CSSOM desde JS. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'">
 <meta name="description" content="PrecioCrea: calcula el precio justo de tus creaciones hechas a mano y publícalas con tu marca. Gratis, sin registro y tus datos nunca salen de tu teléfono.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -154,7 +155,7 @@
       </button>
     </div>
 
-    <div class="stats-row" id="stats-row" style="display:none">
+    <div class="stats-row u-oculto" id="stats-row">
       <div class="stat-pill">
         <div class="stat-val" id="stat-count">0</div>
         <div class="stat-lbl">productos guardados</div>
@@ -193,25 +194,25 @@
            entra en "Creatividad" lo pregunta justo aquí, no en el índice. -->
       <div class="pillars-grid">
         <button type="button" class="pillar" data-action="openHelp" data-section="help-materiales">
-          <span class="pillar-ico" style="background:var(--coral-light)">🧺</span>
+          <span class="pillar-ico bg-coral-light">🧺</span>
           <span class="pillar-name">Materiales</span>
           <span class="pillar-desc">Insumos y packaging</span>
           <span class="pillar-link">Cómo se calcula →</span>
         </button>
         <button type="button" class="pillar" data-action="openHelp" data-section="help-tiempo">
-          <span class="pillar-ico" style="background:var(--blue-light)">⏰</span>
+          <span class="pillar-ico bg-blue-light">⏰</span>
           <span class="pillar-name">Tu tiempo</span>
           <span class="pillar-desc">Horas × valor hora</span>
           <span class="pillar-link">Cómo se calcula →</span>
         </button>
         <button type="button" class="pillar" data-action="openHelp" data-section="help-creatividad">
-          <span class="pillar-ico" style="background:var(--purple-light)">🎨</span>
+          <span class="pillar-ico bg-purple-light">🎨</span>
           <span class="pillar-name">Creatividad</span>
           <span class="pillar-desc">Carga mental y diseño</span>
           <span class="pillar-link">Cómo se calcula →</span>
         </button>
         <button type="button" class="pillar" data-action="openHelp" data-section="help-fijos">
-          <span class="pillar-ico" style="background:var(--green-light)">🏠</span>
+          <span class="pillar-ico bg-green-light">🏠</span>
           <span class="pillar-name">Costos fijos</span>
           <span class="pillar-desc">Prorrateados por unidad</span>
           <span class="pillar-link">Cómo se calcula →</span>
@@ -255,7 +256,7 @@
       <div class="tab-sub" id="products-count">Aún no guardas ninguno</div>
     </div>
 
-    <div class="search-box" id="search-box" style="display:none">
+    <div class="search-box u-oculto" id="search-box">
       <span class="search-ico">🔍</span>
       <input type="search" class="search-input" id="inp-search" placeholder="Buscar un producto"
              aria-label="Buscar un producto" autocomplete="off" maxlength="60" data-input="filterProducts">
@@ -353,7 +354,7 @@
              la app es instalable, y eso no siempre pasa. Esta fila está
              siempre, salvo que ya esté instalada. -->
         <button type="button" class="settings-row" id="install-row" hidden data-action="handleInstallClick">
-          <span class="sr-ico" style="background:var(--purple-light)">📲</span>
+          <span class="sr-ico bg-purple-light">📲</span>
           <span class="sr-text">
             <span class="sr-title">Instalar en tu teléfono</span>
             <span class="sr-sub">Ábrela como app, sin barra del navegador</span>
@@ -361,7 +362,7 @@
           <span class="sr-arrow">→</span>
         </button>
         <button type="button" class="settings-row" data-action="openRateWizard" data-from="view-brand">
-          <span class="sr-ico" style="background:var(--blue-light)">⏰</span>
+          <span class="sr-ico bg-blue-light">⏰</span>
           <span class="sr-text">
             <span class="sr-title">Tu valor hora</span>
             <span class="sr-sub" id="rate-row-sub">Calcúlalo una vez y reutilízalo</span>
@@ -369,7 +370,7 @@
           <span class="sr-arrow">→</span>
         </button>
         <button type="button" class="settings-row" data-action="openFixedWizard" data-from="view-brand">
-          <span class="sr-ico" style="background:var(--green-light)">🏠</span>
+          <span class="sr-ico bg-green-light">🏠</span>
           <span class="sr-text">
             <span class="sr-title">Tus costos fijos</span>
             <span class="sr-sub" id="fixed-row-sub">Calcúlalos una vez y reutilízalos</span>
@@ -377,7 +378,7 @@
           <span class="sr-arrow">→</span>
         </button>
         <button type="button" class="settings-row" data-action="openBackup">
-          <span class="sr-ico" style="background:var(--green-light)">🛡️</span>
+          <span class="sr-ico bg-green-light">🛡️</span>
           <span class="sr-text">
             <span class="sr-title">Respaldo de datos</span>
             <span class="sr-sub">Exportar e importar tus productos</span>
@@ -385,7 +386,7 @@
           <span class="sr-arrow">→</span>
         </button>
         <button type="button" class="settings-row" data-action="openHelp">
-          <span class="sr-ico" style="background:var(--yellow-light)">📖</span>
+          <span class="sr-ico bg-yellow-light">📖</span>
           <span class="sr-text">
             <span class="sr-title">Guía de PrecioCrea</span>
             <span class="sr-sub">Por qué cada número importa</span>
@@ -417,14 +418,14 @@
 
     <!-- STEP 1 — MATERIALES -->
     <div id="step-1" class="calc-step active">
-      <div class="step-chip" style="background:var(--coral-light); color:var(--coral-ink);">🧺 Paso 1 de 4</div>
+      <div class="step-chip chip-coral">🧺 Paso 1 de 4</div>
       <div class="step-title">¿Qué usaste para hacerlo?</div>
       <p class="step-desc">Todo lo que tiene costo: materia prima, insumos, packaging y etiquetas.</p>
 
       <div class="field-group">
         <label class="field-label" for="inp-name">
           Nombre del producto
-          <button class="tip-btn" style="background:var(--coral-deep)" data-action="toggleTip" data-tip="t-name" aria-label="Ayuda sobre el nombre del producto">?</button>
+          <button class="tip-btn bg-coral-deep" data-action="toggleTip" data-tip="t-name" aria-label="Ayuda sobre el nombre del producto">?</button>
         </label>
         <div class="tip-box" id="t-name">Dale un nombre a tu creación para identificarla en tu lista. <em>Ej: "Jabón de lavanda 100g"</em> 🏷️</div>
         <div class="name-with-icon">
@@ -432,7 +433,7 @@
                   data-action="openIconPicker" data-btn="inp-emoji-btn" title="Cambiar el icono">
             <span class="icon-picker-glyph" id="inp-emoji">🎨</span>
           </button>
-          <input class="field-input" type="text" id="inp-name" placeholder="ej: Jabón de lavanda 100g" maxlength="100" autocomplete="off" style="--step-accent:var(--coral-deep)" data-input="onNameInput">
+          <input class="field-input acc-coral" type="text" id="inp-name" placeholder="ej: Jabón de lavanda 100g" maxlength="100" autocomplete="off" data-input="onNameInput">
         </div>
         <div class="field-hint">Toca el icono para cambiarlo o quitarlo.</div>
       </div>
@@ -440,17 +441,17 @@
       <div class="field-group">
         <label class="field-label" for="inp-desc">
           Descripción <span class="field-tag">va en tu publicación</span>
-          <button class="tip-btn" style="background:var(--coral-deep)" data-action="toggleTip" data-tip="t-desc" aria-label="Ayuda sobre la descripción">?</button>
+          <button class="tip-btn bg-coral-deep" data-action="toggleTip" data-tip="t-desc" aria-label="Ayuda sobre la descripción">?</button>
         </label>
         <div class="tip-box" id="t-desc">Una frase corta que cuente qué hace especial a tu producto. <strong>Es la que aparecerá en tus publicaciones</strong>. <em>Ej: "Hecho a mano con lavanda de Colchagua"</em> ✨</div>
-        <textarea class="field-input field-textarea" id="inp-desc" rows="2" maxlength="160"
-                  placeholder="ej: Hecho a mano con lavanda de Colchagua" style="--step-accent:var(--coral-deep)"></textarea>
+        <textarea class="field-input field-textarea acc-coral" id="inp-desc" rows="2" maxlength="160"
+                  placeholder="ej: Hecho a mano con lavanda de Colchagua"></textarea>
       </div>
 
       <div class="field-group">
         <div class="field-label">
           Materiales
-          <button class="tip-btn" style="background:var(--coral-deep)" data-action="toggleTip" data-tip="t-mat" aria-label="Ayuda sobre los materiales">?</button>
+          <button class="tip-btn bg-coral-deep" data-action="toggleTip" data-tip="t-mat" aria-label="Ayuda sobre los materiales">?</button>
         </div>
         <div class="tip-box" id="t-mat">
           Incluye <strong>todo lo que tiene costo</strong>: materia prima, insumos de proceso (guantes, moldes desechables), packaging y etiquetas.<br><br>
@@ -458,8 +459,8 @@
         </div>
         <div class="materials-list" id="mat-list">
           <div class="mat-row">
-            <input class="field-input mat-name" type="text" placeholder="ej: Aceite de coco" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)" aria-label="Nombre del material">
-            <input class="field-input mat-cost" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" data-input="calcMatTotal" style="--step-accent:var(--coral-deep)" aria-label="Costo del material">
+            <input class="field-input mat-name acc-coral" type="text" placeholder="ej: Aceite de coco" maxlength="60" autocomplete="off" aria-label="Nombre del material">
+            <input class="field-input mat-cost acc-coral" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" data-input="calcMatTotal" aria-label="Costo del material">
             <button class="btn-rem" data-action="remMat" aria-label="Quitar material">✕</button>
           </div>
         </div>
@@ -470,32 +471,32 @@
         </div>
       </div>
 
-      <button class="btn-next" style="background:linear-gradient(135deg,var(--coral-deep),var(--orange-deep)); box-shadow:0 12px 28px rgba(222,59,87,0.3)" data-action="goStep" data-step="2">
+      <button class="btn-next btn-next-coral" data-action="goStep" data-step="2">
         Mi tiempo →
       </button>
     </div>
 
     <!-- STEP 2 — TIEMPO -->
     <div id="step-2" class="calc-step">
-      <div class="step-chip" style="background:var(--blue-light); color:var(--blue-deep);">⏰ Paso 2 de 4</div>
+      <div class="step-chip chip-blue">⏰ Paso 2 de 4</div>
       <div class="step-title">¿Cuánto tiempo te tomó?</div>
       <p class="step-desc">Tu tiempo es el recurso más valioso que tienes. Aquí lo convertimos en un número justo.</p>
 
       <div class="field-group">
         <label class="field-label" for="inp-hours">
           Horas trabajadas
-          <button class="tip-btn" style="background:var(--blue-deep)" data-action="toggleTip" data-tip="t-hours" aria-label="Ayuda sobre las horas trabajadas">?</button>
+          <button class="tip-btn bg-blue-deep" data-action="toggleTip" data-tip="t-hours" aria-label="Ayuda sobre las horas trabajadas">?</button>
         </label>
         <div class="tip-box" id="t-hours">
           Cuenta <strong>todo el tiempo</strong>: preparación, producción, empaquetado y control de calidad. Si tardas 30 min en preparar y 2 horas haciendo el producto, escribe <em>2,5</em>. ⏱️
         </div>
-        <input class="field-input" type="text" inputmode="decimal" id="inp-hours" placeholder="ej: 2,5" maxlength="7" autocomplete="off" data-input="updateLaborPreview" style="--step-accent:var(--blue-deep)">
+        <input class="field-input acc-blue" type="text" inputmode="decimal" id="inp-hours" placeholder="ej: 2,5" maxlength="7" autocomplete="off" data-input="updateLaborPreview">
       </div>
 
       <div class="field-group">
         <label class="field-label" for="inp-rate">
           Valor de tu hora ($)
-          <button class="tip-btn" style="background:var(--blue-deep)" data-action="toggleTip" data-tip="t-rate" aria-label="Ayuda sobre el valor de tu hora">?</button>
+          <button class="tip-btn bg-blue-deep" data-action="toggleTip" data-tip="t-rate" aria-label="Ayuda sobre el valor de tu hora">?</button>
         </label>
         <div class="tip-box" id="t-rate">
           <strong>¿Cómo calcularlo?</strong><br>
@@ -504,7 +505,7 @@
           <strong>Regla de oro:</strong> nunca cobres menos del sueldo mínimo por hora (~$2.750/hr en Chile). <em>¡Tú vales mucho más!</em> 💙<br><br>
           Si no sabes por dónde empezar, usa el asistente de aquí abajo. 🧮
         </div>
-        <input class="field-input" type="text" inputmode="numeric" id="inp-rate" placeholder="ej: 8000" maxlength="10" autocomplete="off" data-input="updateLaborPreview" style="--step-accent:var(--blue-deep)">
+        <input class="field-input acc-blue" type="text" inputmode="numeric" id="inp-rate" placeholder="ej: 8000" maxlength="10" autocomplete="off" data-input="updateLaborPreview">
 
         <!-- Aviso del valor hora guardado (solo si la creadora lo pidió) -->
         <button type="button" class="rate-saved" id="rate-saved" data-action="openRateWizard" data-from="view-calc">
@@ -520,22 +521,22 @@
         </div>
       </div>
 
-      <button class="btn-next" style="background:linear-gradient(135deg,var(--blue-deep),#3F7BDD); box-shadow:0 12px 28px rgba(46,99,196,0.3)" data-action="goStep" data-step="3">
+      <button class="btn-next btn-next-blue" data-action="goStep" data-step="3">
         Creatividad →
       </button>
     </div>
 
     <!-- STEP 3 — CREATIVIDAD -->
     <div id="step-3" class="calc-step">
-      <div class="step-chip" style="background:var(--purple-light); color:var(--violet);">🎨 Paso 3 de 4</div>
+      <div class="step-chip chip-violet">🎨 Paso 3 de 4</div>
       <div class="step-title">El trabajo invisible</div>
       <p class="step-desc">El diseño, la originalidad y el esfuerzo mental también tienen un precio.</p>
 
-      <div class="field-label" style="margin-bottom:14px" id="cr-grid-lbl">
+      <div class="field-label u-mb14" id="cr-grid-lbl">
         ¿Qué nivel de creatividad requirió?
-        <button class="tip-btn" style="background:var(--violet)" data-action="toggleTip" data-tip="t-cr" aria-label="Ayuda sobre la carga creativa">?</button>
+        <button class="tip-btn bg-violet" data-action="toggleTip" data-tip="t-cr" aria-label="Ayuda sobre la carga creativa">?</button>
       </div>
-      <div class="tip-box" id="t-cr" style="margin-bottom:16px">
+      <div class="tip-box u-mb16" id="t-cr">
         Esto es el <strong>"trabajo invisible"</strong>: el tiempo que dedicaste a probar ideas fallidas, aprender técnicas, investigar tendencias y diseñar desde cero.<br><br>
         También incluye la <em>carga mental</em>: coordinar proveedores, responder mensajes a deshora, mantener la inspiración bajo presión. <strong>¡Todo eso tiene un precio!</strong> 🧠✨
       </div>
@@ -563,21 +564,21 @@
         </div>
       </div>
 
-      <button class="btn-next" style="background:linear-gradient(135deg,var(--violet),var(--violet-deep)); box-shadow:0 12px 28px rgba(142,63,212,0.3)" data-action="goStep" data-step="4">
+      <button class="btn-next btn-next-violet" data-action="goStep" data-step="4">
         Costos fijos →
       </button>
     </div>
 
     <!-- STEP 4 — COSTOS ESTRUCTURALES -->
     <div id="step-4" class="calc-step">
-      <div class="step-chip" style="background:var(--green-light); color:var(--green-deep);">🏠 Paso 4 de 4</div>
+      <div class="step-chip chip-green">🏠 Paso 4 de 4</div>
       <div class="step-title">Lo que cuesta existir</div>
       <p class="step-desc">Lo que cuesta tener el negocio funcionando, aunque hoy no vendas nada.</p>
 
       <div class="field-group">
         <label class="field-label" for="inp-fixed">
           Gastos fijos mensuales ($)
-          <button class="tip-btn" style="background:var(--green-deep)" data-action="toggleTip" data-tip="t-fixed" aria-label="Ayuda sobre los gastos fijos">?</button>
+          <button class="tip-btn bg-green-deep" data-action="toggleTip" data-tip="t-fixed" aria-label="Ayuda sobre los gastos fijos">?</button>
         </label>
         <div class="tip-box" id="t-fixed">
           Suma todo lo que pagas mensualmente: <br>
@@ -589,7 +590,7 @@
           <em>Tip: Si usas una habitación de tu casa, considera el 15-20% del arriendo. 🏠</em><br><br>
           Si no sabes por dónde empezar, usa el asistente de aquí abajo. 🧮
         </div>
-        <input class="field-input" type="text" inputmode="numeric" id="inp-fixed" placeholder="ej: 80000" maxlength="10" autocomplete="off" style="--step-accent:var(--green-deep)">
+        <input class="field-input acc-green" type="text" inputmode="numeric" id="inp-fixed" placeholder="ej: 80000" maxlength="10" autocomplete="off">
 
         <!-- Aviso de los costos guardados (solo si la creadora lo pidió) -->
         <button type="button" class="rate-saved fixed-saved" id="fixed-saved" data-action="openFixedWizard" data-from="view-calc">
@@ -604,15 +605,15 @@
       <div class="field-group">
         <label class="field-label" for="inp-units">
           Unidades que produces al mes
-          <button class="tip-btn" style="background:var(--green-deep)" data-action="toggleTip" data-tip="t-units" aria-label="Ayuda sobre las unidades mensuales">?</button>
+          <button class="tip-btn bg-green-deep" data-action="toggleTip" data-tip="t-units" aria-label="Ayuda sobre las unidades mensuales">?</button>
         </label>
         <div class="tip-box" id="t-units">
           Este número reparte tus gastos fijos entre todos tus productos. Si fabricas 20 jabones y 10 aros, escribe <em>30</em>. Así cada producto paga su parte justa del negocio. 📊
         </div>
-        <input class="field-input" type="text" inputmode="numeric" id="inp-units" placeholder="ej: 30" maxlength="6" autocomplete="off" value="20" style="--step-accent:var(--green-deep)">
+        <input class="field-input acc-green" type="text" inputmode="numeric" id="inp-units" placeholder="ej: 30" maxlength="6" autocomplete="off" value="20">
       </div>
 
-      <button class="btn-next" style="background:linear-gradient(135deg,#2FA355,var(--green-deep)); box-shadow:0 12px 28px rgba(35,130,60,0.3)" data-action="showResults">
+      <button class="btn-next btn-next-green" data-action="showResults">
         ¡Ver mi precio! 🎉
       </button>
     </div>
@@ -666,7 +667,7 @@
             <span class="mat-total-val" id="rate-hogar">$0</span>
           </div>
 
-          <div class="field-label" style="margin-top:20px">¿Qué parte tiene que salir de tu emprendimiento?</div>
+          <div class="field-label u-mt20">¿Qué parte tiene que salir de tu emprendimiento?</div>
           <div class="margin-btns rate-shares">
             <button class="m-btn" data-share="100" data-action="setRateShare">100%<br><small>Todo</small></button>
             <button class="m-btn active" data-share="50" data-action="setRateShare">50%<br><small>La mitad</small></button>
@@ -678,8 +679,8 @@
         <!-- Camino B: monto directo -->
         <div id="rate-directo" hidden>
           <label class="field-label" for="rate-meta-directa">Tu sueldo mensual objetivo</label>
-          <input class="field-input" type="text" inputmode="numeric" id="rate-meta-directa" maxlength="10"
-                 autocomplete="off" placeholder="ej: 600000" data-input="rateRecalc" style="--step-accent:var(--blue-deep)">
+          <input class="field-input acc-blue" type="text" inputmode="numeric" id="rate-meta-directa" maxlength="10"
+                 autocomplete="off" placeholder="ej: 600000" data-input="rateRecalc">
           <div class="field-hint">Lo que quieres que te deje el emprendimiento cada mes, ya descontados los gastos del negocio.</div>
         </div>
 
@@ -702,9 +703,9 @@
         <div class="field-label">Días por semana</div>
         <div class="rate-days" id="rate-days"></div>
 
-        <label class="field-label" style="margin-top:18px" for="rate-hours-day">Horas por día</label>
-        <input class="field-input" type="text" inputmode="decimal" id="rate-hours-day" maxlength="4"
-               autocomplete="off" value="6" data-input="rateRecalc" style="--step-accent:var(--blue-deep)">
+        <label class="field-label u-mt18" for="rate-hours-day">Horas por día</label>
+        <input class="field-input acc-blue" type="text" inputmode="decimal" id="rate-hours-day" maxlength="4"
+               autocomplete="off" value="6" data-input="rateRecalc">
 
         <div class="rate-result-line">
           <span>Horas al mes</span>
@@ -746,15 +747,15 @@
           </div>
         </div>
 
-        <label class="brand-toggle" style="margin:0 0 12px">
+        <label class="brand-toggle toggle-solo">
           <input type="checkbox" id="rate-tax-on" checked data-change="rateRecalc">
           <span>Sumar un porcentaje para AFP, salud e impuestos</span>
         </label>
 
         <div id="rate-tax-wrap">
           <label class="field-label" for="rate-tax">Porcentaje a sumar</label>
-          <input class="field-input" type="text" inputmode="numeric" id="rate-tax" maxlength="2"
-                 autocomplete="off" value="20" data-input="rateRecalc" style="--step-accent:var(--blue-deep)">
+          <input class="field-input acc-blue" type="text" inputmode="numeric" id="rate-tax" maxlength="2"
+                 autocomplete="off" value="20" data-input="rateRecalc">
           <div class="field-hint">Si emites boleta de honorarios, la retención y tus cotizaciones salen de lo que cobras. Súmalas ahora o las pagas de tu bolsillo.</div>
         </div>
       </div>
@@ -818,7 +819,7 @@
           <div class="note-txt">Si trabajas en una habitación, tu negocio ocupa espacio, luz e internet de tu casa. <strong>Esa proporción</strong> es un gasto del negocio y va aquí. El resto es tuyo y ya lo cubre tu valor hora. ¿Arriendas un <strong>taller aparte</strong>? Marca <strong>0%</strong> y anota ese arriendo abajo, en «Arriendo de taller aparte» — nunca los dos a la vez.</div>
         </div>
 
-        <div class="field-label" style="margin-top:16px">¿Qué parte de tu casa ocupa el negocio?</div>
+        <div class="field-label u-mt16">¿Qué parte de tu casa ocupa el negocio?</div>
         <div class="margin-btns fixed-shares">
           <button class="m-btn" data-fshare="0" data-action="setFixedShare">0%<br><small>Taller aparte</small></button>
           <button class="m-btn" data-fshare="10" data-action="setFixedShare">10%<br><small>Un rincón</small></button>
@@ -866,12 +867,12 @@
         <p class="rate-text">Tu máquina de coser, el horno, la selladora, los moldes. No los pagas todos los meses, pero se desgastan todos los meses. Repartir su precio entre los años que te van a durar es lo que te permite reponerlos sin que sea un golpe.</p>
 
         <label class="field-label" for="fixed-tools-value">¿Cuánto valen todas juntas?</label>
-        <input class="field-input" type="text" inputmode="numeric" id="fixed-tools-value" maxlength="10"
-               autocomplete="off" placeholder="ej: 250000" data-input="fixedRecalc" style="--step-accent:var(--green-deep)">
+        <input class="field-input acc-green" type="text" inputmode="numeric" id="fixed-tools-value" maxlength="10"
+               autocomplete="off" placeholder="ej: 250000" data-input="fixedRecalc">
 
-        <label class="field-label" style="margin-top:16px" for="fixed-tools-years">¿Cuántos años te durarán?</label>
-        <input class="field-input" type="text" inputmode="numeric" id="fixed-tools-years" maxlength="2"
-               autocomplete="off" value="3" data-input="fixedRecalc" style="--step-accent:var(--green-deep)">
+        <label class="field-label u-mt16" for="fixed-tools-years">¿Cuántos años te durarán?</label>
+        <input class="field-input acc-green" type="text" inputmode="numeric" id="fixed-tools-years" maxlength="2"
+               autocomplete="off" value="3" data-input="fixedRecalc">
 
         <div class="rate-result-line">
           <span>Cuota mensual</span>
@@ -891,8 +892,8 @@
 
         <p class="rate-text">Cuenta <strong>todo</strong> lo que sale de tu taller, no solo un tipo de producto: si haces 20 jabones y 10 aros, son 30. Mientras más produces, menos le toca pagar a cada pieza.</p>
 
-        <input class="field-input" type="text" inputmode="numeric" id="fixed-units" maxlength="6"
-               autocomplete="off" value="30" data-input="fixedRecalc" style="--step-accent:var(--green-deep)"
+        <input class="field-input acc-green" type="text" inputmode="numeric" id="fixed-units" maxlength="6"
+               autocomplete="off" value="30" data-input="fixedRecalc"
                aria-label="Unidades que produces al mes">
       </div>
 
@@ -1015,20 +1016,20 @@
       <!-- Export -->
       <div class="panel">
         <div class="panel-head">
-          <div class="panel-ico" style="background:var(--blue-light)">📤</div>
+          <div class="panel-ico bg-blue-light">📤</div>
           <div>
             <div class="panel-title">Exportar productos</div>
             <div class="panel-sub">Un archivo .json con todo</div>
           </div>
         </div>
         <p class="panel-text">Guárdalo en Google Drive, envíatelo por WhatsApp o déjalo en tu computador.</p>
-        <button class="btn-save" style="margin-bottom:0" data-action="exportData">Descargar respaldo</button>
+        <button class="btn-save u-mb0" data-action="exportData">Descargar respaldo</button>
       </div>
 
       <!-- Import -->
       <div class="panel">
         <div class="panel-head">
-          <div class="panel-ico" style="background:var(--purple-light)">📥</div>
+          <div class="panel-ico bg-purple-light">📥</div>
           <div>
             <div class="panel-title">Importar respaldo</div>
             <div class="panel-sub">Restaurar desde un archivo</div>
@@ -1036,7 +1037,7 @@
         </div>
         <p class="panel-text">Si cambiaste de dispositivo o limpiaste el caché, selecciona el archivo <strong>.json</strong> que exportaste antes. Los productos nuevos se agregarán sin eliminar los actuales.</p>
         <button class="btn-violet" data-action="clickTarget" data-target="inp-import">Seleccionar archivo</button>
-        <input type="file" id="inp-import" accept=".json" data-change="importData" style="display:none">
+        <input type="file" id="inp-import" class="u-oculto" accept=".json" data-change="importData">
       </div>
 
       <!-- Tip -->
@@ -1068,7 +1069,7 @@
       <!-- POR QUÉ IMPORTA -->
       <div class="help-section open">
         <div class="help-section-hd" data-action="toggleHelp" role="button" tabindex="0" aria-expanded="true">
-          <div class="help-section-hd-icon" style="background:var(--coral-light)">💜</div>
+          <div class="help-section-hd-icon bg-coral-light">💜</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">¿Por qué cuesta poner precio?</div>
             <div class="help-section-hd-sub">El origen del problema</div>
@@ -1089,7 +1090,7 @@
       <!-- MATERIALES -->
       <div class="help-section" id="help-materiales">
         <div class="help-section-hd" data-action="toggleHelp" role="button" tabindex="0" aria-expanded="false">
-          <div class="help-section-hd-icon" style="background:var(--coral-light)">🧺</div>
+          <div class="help-section-hd-icon bg-coral-light">🧺</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Paso 1 · Materiales</div>
             <div class="help-section-hd-sub">Todo lo que se vuelve producto</div>
@@ -1119,7 +1120,7 @@
       <!-- TIEMPO -->
       <div class="help-section" id="help-tiempo">
         <div class="help-section-hd" data-action="toggleHelp" role="button" tabindex="0" aria-expanded="false">
-          <div class="help-section-hd-icon" style="background:var(--blue-light)">⏰</div>
+          <div class="help-section-hd-icon bg-blue-light">⏰</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Paso 2 · Tu tiempo</div>
             <div class="help-section-hd-sub">El recurso que no vuelve</div>
@@ -1155,7 +1156,7 @@
       <!-- CREATIVIDAD -->
       <div class="help-section" id="help-creatividad">
         <div class="help-section-hd" data-action="toggleHelp" role="button" tabindex="0" aria-expanded="false">
-          <div class="help-section-hd-icon" style="background:var(--purple-light)">🎨</div>
+          <div class="help-section-hd-icon bg-purple-light">🎨</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Paso 3 · Creatividad</div>
             <div class="help-section-hd-sub">El trabajo invisible</div>
@@ -1184,7 +1185,7 @@
       <!-- COSTOS ESTRUCTURALES -->
       <div class="help-section" id="help-fijos">
         <div class="help-section-hd" data-action="toggleHelp" role="button" tabindex="0" aria-expanded="false">
-          <div class="help-section-hd-icon" style="background:var(--green-light)">🏠</div>
+          <div class="help-section-hd-icon bg-green-light">🏠</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Paso 4 · Costos fijos</div>
             <div class="help-section-hd-sub">Lo que cuesta existir</div>
@@ -1219,7 +1220,7 @@
       <!-- PRECIO MÍNIMO VS IDEAL -->
       <div class="help-section">
         <div class="help-section-hd" data-action="toggleHelp" role="button" tabindex="0" aria-expanded="false">
-          <div class="help-section-hd-icon" style="background:var(--yellow-light)">📊</div>
+          <div class="help-section-hd-icon bg-yellow-light">📊</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Precio mínimo vs. ideal</div>
             <div class="help-section-hd-sub">La diferencia entre sobrevivir y crecer</div>
@@ -1250,7 +1251,7 @@
       <!-- PUBLICAR TU PRECIO -->
       <div class="help-section">
         <div class="help-section-hd" data-action="toggleHelp" role="button" tabindex="0" aria-expanded="false">
-          <div class="help-section-hd-icon" style="background:var(--purple-light)">📸</div>
+          <div class="help-section-hd-icon bg-purple-light">📸</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Publicar tu precio</div>
             <div class="help-section-hd-sub">Nuevo en la versión 2.0</div>
@@ -1281,7 +1282,7 @@
       <!-- ERRORES COMUNES -->
       <div class="help-section">
         <div class="help-section-hd" data-action="toggleHelp" role="button" tabindex="0" aria-expanded="false">
-          <div class="help-section-hd-icon" style="background:#FFE8E8">🚫</div>
+          <div class="help-section-hd-icon bg-rosa-palido">🚫</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Errores que drenan tu negocio</div>
             <div class="help-section-hd-sub">Aprende de lo que otras ya vivieron</div>
@@ -1311,7 +1312,7 @@
       <!-- MANTRAS -->
       <div class="help-section">
         <div class="help-section-hd" data-action="toggleHelp" role="button" tabindex="0" aria-expanded="false">
-          <div class="help-section-hd-icon" style="background:var(--purple-light)">🌟</div>
+          <div class="help-section-hd-icon bg-purple-light">🌟</div>
           <div class="help-section-hd-text">
             <div class="help-section-hd-title">Lo que toda creadora debe recordar</div>
             <div class="help-section-hd-sub">Para el corazón y para la cabeza</div>
@@ -1376,7 +1377,7 @@
       </div>
 
       <div class="help-version">
-        Versión 2.1.0 · creada para <a href="https://viviloaiza.cl" target="_blank" rel="noopener noreferrer">viviloaiza.cl</a> por parg
+        Versión 2.1.1 · creada para <a href="https://viviloaiza.cl" target="_blank" rel="noopener noreferrer">viviloaiza.cl</a> por parg
       </div>
 
     </div>
@@ -1438,7 +1439,7 @@
     <div class="modal-title" id="install-title">Instalar en tu teléfono</div>
     <div class="ios-steps" id="install-steps"></div>
     <div class="ios-install-tip" id="install-tip"></div>
-    <div class="modal-actions" style="grid-template-columns: 1fr">
+    <div class="modal-actions una-columna">
       <button class="modal-btn modal-btn-confirm safe" data-action="hideInstallGuide">Entendido</button>
     </div>
   </div>

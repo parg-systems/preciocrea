@@ -83,12 +83,14 @@ out = out.replace(
 // 3) Reemplazar referencias a íconos y manifest por data URIs / inline
 out = out.replace(/href="\.\/assets\/icons\/icon-192\.png"/g, `href="${icon}"`);
 
-// 3b) CSP del portable: la app servida declara script-src 'self' a secas
-//     (no queda ni un manejador en línea), pero aquí el JS entero viaja en
-//     bloques <script> DENTRO del html — sin 'unsafe-inline' el navegador los
-//     bloquearía y el portable abriría en blanco. El modelo de amenaza del
-//     archivo local de doble clic es otro: se relaja solo script-src.
+// 3b) CSP del portable: la app servida declara script-src y style-src 'self'
+//     a secas (sin manejadores ni estilos en línea), pero aquí el JS viaja en
+//     bloques <script> y el CSS en un <style> DENTRO del html — sin
+//     'unsafe-inline' el navegador los bloquearía y el portable abriría en
+//     blanco y sin paleta. El modelo de amenaza del archivo local de doble
+//     clic es otro: se relajan solo estas dos directivas.
 out = out.replace(/script-src 'self';/, inline("script-src 'self' 'unsafe-inline';"));
+out = out.replace(/style-src 'self';/,  inline("style-src 'self' 'unsafe-inline';"));
 
 // 4) Quitar el link al manifest (no aplica en archivo único)
 out = out.replace(/<link\s+rel="manifest"[^>]*>\s*\n?/g, '');
@@ -126,10 +128,12 @@ if (fontRefs) leftovers.push(...new Set(fontRefs));
 // a assets/icons/ pasaría el build en silencio y se repartiría roto.
 const iconRefs = out.match(/assets\/icons\/[\w.-]+/g);
 if (iconRefs) leftovers.push(...new Set(iconRefs));
-// La CSP del portable DEBE haber quedado con 'unsafe-inline' en script-src:
-// si la sustitución no calzó (p. ej. cambió el orden de la meta), los <script>
-// inline quedan bloqueados y el archivo abre en blanco sin error visible.
+// La CSP del portable DEBE haber quedado con 'unsafe-inline' en script-src Y
+// en style-src: si una sustitución no calzó (p. ej. cambió el orden de la
+// meta), los <script>/<style> inline quedan bloqueados y el archivo abre en
+// blanco o sin paleta, sin error visible.
 if (!/script-src 'self' 'unsafe-inline'/.test(out)) leftovers.push("CSP sin 'unsafe-inline' en script-src (portable roto)");
+if (!/style-src 'self' 'unsafe-inline'/.test(out))  leftovers.push("CSP sin 'unsafe-inline' en style-src (portable sin estilos)");
 // Y ningún origen externo, que es lo que este build vino a eliminar.
 const externos = out.match(/(?:href|src)="https?:\/\/(?!viviloaiza\.cl|instagram\.com|open\.spotify\.com|wa\.me)[^"]+"/g);
 if (externos) leftovers.push(...new Set(externos));

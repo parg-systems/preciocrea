@@ -279,7 +279,7 @@ function renderBrandForm() {
 
   const swatches = STUDIO_ACCENTS.map(hex => `
     <button type="button" class="brand-swatch${b.accent === hex ? ' sel' : ''}"
-            data-hex="${hex}" style="background:${hex}"
+            data-hex="${hex}"
             data-action="setBrandAccent"
             aria-label="Color ${hex}"></button>`).join('');
 
@@ -294,7 +294,7 @@ function renderBrandForm() {
     <input class="field-input" type="text" id="brand-name" maxlength="${MAX_BRAND_NAME}"
            placeholder="Ej: Telar de Luna" value="${esc(b.name)}" data-input="previewBrand">
 
-    <label class="field-label" style="margin-top:16px" for="brand-handle">Tu Instagram</label>
+    <label class="field-label u-mt16" for="brand-handle">Tu Instagram</label>
     <div class="brand-handle-wrap">
       <span class="brand-handle-at">@</span>
       <input class="field-input brand-handle-input" type="text" id="brand-handle"
@@ -302,7 +302,7 @@ function renderBrandForm() {
              value="${esc(b.handle)}" data-input="previewBrand">
     </div>
 
-    <div class="field-label" style="margin-top:18px">Tu logo <span class="field-optional">opcional</span></div>
+    <div class="field-label u-mt18">Tu logo <span class="field-optional">opcional</span></div>
     ${b.logo
       ? `<div class="logo-box">
            <div class="logo-preview"><img src="${esc(b.logo)}" alt="Tu logo"></div>
@@ -313,18 +313,18 @@ function renderBrandForm() {
          </div>`
       : `<button type="button" class="studio-photo-btn primary"
                  data-action="clickTarget" data-target="brand-logo-file">🖼️ Subir mi logo</button>`}
-    <input type="file" id="brand-logo-file" accept="image/*" style="display:none"
+    <input type="file" id="brand-logo-file" class="u-oculto" accept="image/*"
            data-change="studioPickLogo">
     <div class="field-hint">Si subes un logo, reemplaza a tu nombre escrito en las publicaciones. Un PNG con fondo transparente y de color claro funciona en todos los estilos, incluidos los de fondo oscuro.</div>
 
-    <div class="field-label" style="margin-top:18px">Tu color</div>
+    <div class="field-label u-mt18">Tu color</div>
     <div class="brand-swatches" id="brand-swatches">${swatches}</div>
     <label class="brand-custom-color">
       <input type="color" id="brand-color" value="${esc(b.accent)}" data-input="brandAccentLibre">
       <span>Elegir otro color</span>
     </label>
 
-    <div class="field-label" style="margin-top:18px">Cómo mostrar el precio</div>
+    <div class="field-label u-mt18">Cómo mostrar el precio</div>
     <div class="margin-btns brand-price-chips">${priceChips}</div>
     <div class="field-hint">«Precio» publica tu precio ideal con el IVA ya incluido: es lo que paga quien te compra.</div>
 
@@ -335,7 +335,17 @@ function renderBrandForm() {
 
     <button class="btn-save" data-action="saveBrandForm">Guardar mi marca</button>`;
 
+  studioPintarSwatches(document.getElementById('brand-swatches'));
   previewBrand();
+}
+
+// Pinta el color de cada swatch por CSSOM. Con la CSP estricta el marcado no
+// puede llevar atributos de estilo — ni siquiera el generado por innerHTML —
+// pero asignar por la propiedad .style desde JS sí está permitido.
+function studioPintarSwatches(contenedor) {
+  (contenedor || document).querySelectorAll('.brand-swatch[data-hex]').forEach(s => {
+    s.style.background = s.dataset.hex;
+  });
 }
 
 // Cambia el acento desde un swatch o desde el <input type="color">.
@@ -1885,21 +1895,21 @@ function renderStudioPick() {
 
        <div class="pick-list">${cards}</div>
 
-       <div class="field-label" style="margin-top:22px">📣 Título de la portada</div>
+       <div class="field-label u-mt22">📣 Título de la portada</div>
        <input class="field-input" type="text" id="pick-headline" maxlength="60"
               placeholder="Mi catálogo" value="Mi catálogo">
 
-       <div class="field-label" style="margin-top:16px">💬 Bajada de la portada</div>
+       <div class="field-label u-mt16">💬 Bajada de la portada</div>
        <input class="field-input" type="text" id="pick-subhead" maxlength="90"
               placeholder="Hecho a mano" value="${esc(b.name)} · hecho a mano">
 
-       <div class="studio-actions" style="padding-left:0; padding-right:0">
+       <div class="studio-actions u-sin-pad-x">
          <button class="btn-violet" data-action="startCatalogo">Continuar →</button>
          <button class="btn-new-calc" data-action="showView" data-view="view-studio-hub">← Volver al Estudio</button>
        </div>`
     : `<p class="brand-intro">¿De cuál producto quieres hacer una historia? 📱</p>
        <div class="pick-list">${cards}</div>
-       <div class="studio-actions" style="padding-left:0; padding-right:0">
+       <div class="studio-actions u-sin-pad-x">
          <button class="btn-new-calc" data-action="showView" data-view="view-studio-hub">← Volver al Estudio</button>
        </div>`;
 }
@@ -2078,7 +2088,7 @@ function renderStudioEdit() {
     <div class="studio-font-note" id="studio-font-note" hidden></div>
 
     <div class="studio-photo-bar" id="studio-photo-bar"></div>
-    <input type="file" id="studio-file" accept="image/*" style="display:none"
+    <input type="file" id="studio-file" class="u-oculto" accept="image/*"
            data-change="studioPickPhoto">
 
     <div class="studio-controls">
@@ -2125,7 +2135,7 @@ function studioActionButtons(p, multi) {
   }
   return `<button class="btn-violet" data-action="studioDownloadAll">⬇️ Descargar las ${n} láminas</button>
           ${prog}
-          <div class="studio-hint" style="margin:-4px 0 0">Tu navegador puede pedirte permiso para descargar varios archivos: toca Permitir.</div>
+          <div class="studio-hint studio-hint-pegado">Tu navegador puede pedirte permiso para descargar varios archivos: toca Permitir.</div>
           <button class="btn-new-calc"
                   data-action="${share ? 'studioShareActive' : 'studioDownloadActive'}">
             ${share ? '📤 Compartir' : '⬇️ Descargar'} solo esta lámina
@@ -2147,7 +2157,7 @@ function renderStudioFields() {
       <input class="field-input" type="text" id="studio-headline" maxlength="60"
              value="${esc(slide.headline || '')}" data-input="setStudioField" data-field="headline" data-max="60">
 
-      <label class="field-label" style="margin-top:16px" for="studio-subhead">Bajada</label>
+      <label class="field-label u-mt16" for="studio-subhead">Bajada</label>
       <input class="field-input" type="text" id="studio-subhead" maxlength="90"
              value="${esc(slide.subhead || '')}" data-input="setStudioField" data-field="subhead" data-max="90">`;
     return;
@@ -2164,13 +2174,13 @@ function renderStudioFields() {
     <input class="field-input" type="text" id="studio-name" maxlength="${MAX_NAME_LEN}"
            value="${esc(slide.name || '')}" data-input="setStudioName">
 
-    <label class="field-label" style="margin-top:16px" for="studio-desc">Descripción</label>
+    <label class="field-label u-mt16" for="studio-desc">Descripción</label>
     <textarea class="field-input field-textarea" id="studio-desc" rows="2" maxlength="${MAX_DESC_LEN}"
               placeholder="Una frase corta sobre tu producto"
               data-input="setStudioField" data-field="desc" data-max="${MAX_DESC_LEN}">${esc(slide.desc || '')}</textarea>
     <div class="field-hint">Solo cambia esta publicación; no toca el producto guardado.</div>
 
-    <div class="field-label" style="margin-top:16px">Precio${p.slides.length > 1 ? ' (en todas las láminas)' : ''}</div>
+    <div class="field-label u-mt16">Precio${p.slides.length > 1 ? ' (en todas las láminas)' : ''}</div>
     <div class="margin-btns studio-price-chips">${priceChips}</div>`;
 }
 
@@ -2185,7 +2195,7 @@ function renderStudioAccent() {
 
   const swatches = STUDIO_ACCENTS.map(hex => `
     <button type="button" class="brand-swatch${actual === hex ? ' sel' : ''}"
-            data-hex="${hex}" style="background:${hex}"
+            data-hex="${hex}"
             data-action="setStudioAccent" aria-label="Color ${hex}"></button>`).join('');
 
   box.innerHTML = `
@@ -2202,6 +2212,8 @@ function renderStudioAccent() {
            </button>`
         : ''}
     </div>`;
+
+  studioPintarSwatches(box);
 }
 
 // Acento efectivo: el de la pieza si se cambió, si no el de la marca guardada.

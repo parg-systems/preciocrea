@@ -3665,3 +3665,63 @@ body:has(.modal-overlay.show) { overflow: hidden; }
   .m-btn { font-size: 13px; padding: 11px 4px; }
   .pf-note { max-width: 118px; }
 }
+
+/* ============================================================
+   CLASES DE PRESENTACIÓN (ex atributos de estilo en línea)
+   ============================================================
+   La CSP declara style-src 'self' sin 'unsafe-inline': ningún elemento puede
+   llevar estilo en su atributo, ni estático ni generado por innerHTML. Lo
+   puntual que antes iba en línea vive aquí; lo dinámico (colores elegidos por
+   la usuaria, barras del desglose) se asigna por CSSOM desde JS, que la CSP
+   sí permite. Este bloque va AL FINAL a propósito: a igual especificidad,
+   estas clases deben ganarle a las reglas de componente de más arriba. */
+
+/* Acento del paso activo (variable que consumen los .field-input) */
+.acc-coral { --step-accent: var(--coral-deep); }
+.acc-blue  { --step-accent: var(--blue-deep); }
+.acc-green { --step-accent: var(--green-deep); }
+
+/* Fondos suaves (iconos de filas, paneles, pilares y guía) */
+.bg-coral-light  { background: var(--coral-light); }
+.bg-blue-light   { background: var(--blue-light); }
+.bg-purple-light { background: var(--purple-light); }
+.bg-green-light  { background: var(--green-light); }
+.bg-yellow-light { background: var(--yellow-light); }
+.bg-rosa-palido  { background: #FFE8E8; }
+
+/* Fondos con cuerpo (botones "?" de ayuda) */
+.bg-coral-deep { background: var(--coral-deep); }
+.bg-blue-deep  { background: var(--blue-deep); }
+.bg-green-deep { background: var(--green-deep); }
+.bg-violet     { background: var(--violet); }
+
+/* Chips de paso de la calculadora */
+.chip-coral  { background: var(--coral-light);  color: var(--coral-ink); }
+.chip-blue   { background: var(--blue-light);   color: var(--blue-deep); }
+.chip-violet { background: var(--purple-light); color: var(--violet); }
+.chip-green  { background: var(--green-light);  color: var(--green-deep); }
+
+/* Botones "siguiente", uno por paso */
+.btn-next-coral  { background: linear-gradient(135deg, var(--coral-deep), var(--orange-deep)); box-shadow: 0 12px 28px rgba(222,59,87,0.3); }
+.btn-next-blue   { background: linear-gradient(135deg, var(--blue-deep), #3F7BDD); box-shadow: 0 12px 28px rgba(46,99,196,0.3); }
+.btn-next-violet { background: linear-gradient(135deg, var(--violet), var(--violet-deep)); box-shadow: 0 12px 28px rgba(142,63,212,0.3); }
+.btn-next-green  { background: linear-gradient(135deg, #2FA355, var(--green-deep)); box-shadow: 0 12px 28px rgba(35,130,60,0.3); }
+
+/* Utilidades puntuales. El JS puede seguir alternando display por CSSOM:
+   el estilo programático en línea le gana a estas clases, como siempre. */
+.u-oculto { display: none; }
+.u-mt16 { margin-top: 16px; }
+.u-mt18 { margin-top: 18px; }
+.u-mt20 { margin-top: 20px; }
+.u-mt22 { margin-top: 22px; }
+.u-mb0  { margin-bottom: 0; }
+.u-mb14 { margin-bottom: 14px; }
+.u-mb16 { margin-bottom: 16px; }
+.u-full { width: 100%; }
+.u-sin-pad-x { padding-left: 0; padding-right: 0; }
+.toggle-solo { margin: 0 0 12px; }              /* brand-toggle suelto del asistente */
+.una-columna { grid-template-columns: 1fr; }    /* modal-actions con un solo botón */
+.studio-hint-pegado { margin: -4px 0 0; }
+.det-margin-plano { padding: 0; margin-bottom: 20px; }
+.det-cr-titulo { margin-top: 18px; margin-bottom: 10px; }
+.det-pie { padding-bottom: 16px; }
