@@ -1,17 +1,41 @@
-# ============================================================
-#  TEMPORAL — QUITAR ANTES DEL LANZAMIENTO DE AGOSTO DE 2026
-# ============================================================
-#  Mientras el sitio esta en pruebas, se bloquea a todos los
-#  rastreadores para que la URL no circule antes de tiempo.
+# ==================================================================
+#  PrecioCrea — no debe aparecer NUNCA en buscadores
+# ==================================================================
+#  La app se reparte solo desde la pagina de Vivi. No queremos que
+#  Google, Bing ni ningun otro buscador la listen. Nunca. Esto no
+#  es temporal ni una medida de pruebas: es permanente.
 #
-#  El motivo para borrarlo NO es Google: la app es gratuita y no
-#  necesita trafico de busqueda. El motivo es que este Disallow
-#  tambien bloquea a facebookexternalhit, el rastreador que arma
-#  la tarjeta de vista previa al compartir por WhatsApp,
-#  Instagram y Facebook, que es como se reparte la app. Con el
-#  archivo puesto, el enlace que manda Vivi llega como una URL
-#  pelada en vez de una tarjeta con nombre y descripcion.
-# ============================================================
+#  ATENCION: este archivo PERMITE el rastreo a proposito.
+#  No es un descuido. No lo cambies por un "Disallow: /".
+#
+#  El bloqueo real lo hace esta etiqueta, en el <head> de index.html:
+#
+#      <meta name="robots" content="noindex">
+#
+#  Esa etiqueta si saca el sitio del indice. Pero el buscador tiene
+#  que poder ENTRAR para leerla.
+#
+#  Por que "Disallow: /" seria peor:
+#
+#  1. robots.txt controla el RASTREO, no la INDEXACION. Si Google
+#     encuentra el enlace en la pagina de Vivi, puede listar la URL
+#     en sus resultados aunque tenga prohibido entrar: aparece como
+#     una entrada pelada, sin titulo ni descripcion. Y como nunca
+#     entro, jamas leyo el noindex y no tiene forma de saber que
+#     debia excluirla. El bloqueo mas estricto produce MAS presencia
+#     en buscadores, no menos. Es la propia recomendacion de Google:
+#     para mantener una pagina fuera del indice se usa noindex, no
+#     robots.txt.
+#
+#  2. Bloquearia a facebookexternalhit, el rastreador que arma la
+#     tarjeta de vista previa al compartir por WhatsApp, Instagram y
+#     Facebook — que es justamente el canal de reparto de la app.
+#     El enlace que manda Vivi llegaria como una URL pelada.
+#
+#  Resumen: para que no aparezca en buscadores, lo que hay que
+#  conservar es el noindex de index.html. Este archivo solo existe
+#  para dejar constancia de eso y evitar que alguien lo "arregle".
+# ==================================================================
 
 User-agent: *
-Disallow: /
+Allow: /

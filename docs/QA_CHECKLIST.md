@@ -7,13 +7,12 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 > los archivos viejos, no aparece el banner de actualización, y estarás probando
 > —y publicando— la versión anterior sin darte cuenta.
 
-> **Solo para el lanzamiento público: borrar `robots.txt`.** Mientras el sitio
-> está en pruebas bloquea a todos los rastreadores con `Disallow: /`. El motivo
-> para borrarlo no es Google —la app es gratuita y no necesita búsquedas— sino
-> que ese `Disallow` también bloquea a `facebookexternalhit`, el rastreador que
-> arma la **vista previa al compartir por WhatsApp e Instagram**, que es como se
-> reparte la app. Con el archivo puesto, el enlace llega como URL pelada.
-> No aplica a las entregas de prueba: solo a la que abre el sitio al público.
+> **El sitio no debe aparecer nunca en buscadores.** Se reparte solo desde la
+> página de Vivi. Lo que lo garantiza es `<meta name="robots" content="noindex">`
+> en el `<head>` de `index.html` — **no borrar esa línea**. El `robots.txt`
+> **permite** el rastreo a propósito: si lo bloqueara, Google nunca leería el
+> `noindex` y podría listar la URL pelada igual, además de romper la vista previa
+> al compartir por WhatsApp. Ambos archivos lo explican en sus comentarios.
 
 ## Smoke test (5 min)
 

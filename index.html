@@ -16,6 +16,12 @@
      styles.css y lo dinámico se asigna por CSSOM desde JS. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'">
 <meta name="description" content="PrecioCrea: calcula el precio justo de tus creaciones hechas a mano y publícalas con tu marca. Gratis, sin registro y tus datos nunca salen de tu teléfono.">
+<!-- La app se reparte SOLO desde la página de Vivi: no debe aparecer nunca en
+     buscadores. Esta etiqueta es lo que de verdad la saca del índice. Ojo:
+     robots.txt permite el rastreo a propósito, porque el buscador tiene que
+     poder entrar para leer este noindex. Un "Disallow: /" haría lo contrario
+     de lo que parece — Google listaría la URL pelada igual. Ver robots.txt. -->
+<meta name="robots" content="noindex">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
