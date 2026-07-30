@@ -1,12 +1,16 @@
 # ============================================================
 #  TEMPORAL — QUITAR ANTES DEL LANZAMIENTO DE AGOSTO DE 2026
 # ============================================================
-#  Mientras el sitio esta en pruebas, se bloquea a los
-#  buscadores para que la URL no se indexe antes de tiempo.
+#  Mientras el sitio esta en pruebas, se bloquea a todos los
+#  rastreadores para que la URL no circule antes de tiempo.
 #
-#  Si este archivo sigue aqui el dia del lanzamiento, el sitio
-#  nace invisible para Google. Borrarlo (o dejar el Disallow
-#  vacio) es el ultimo paso antes de publicar.
+#  El motivo para borrarlo NO es Google: la app es gratuita y no
+#  necesita trafico de busqueda. El motivo es que este Disallow
+#  tambien bloquea a facebookexternalhit, el rastreador que arma
+#  la tarjeta de vista previa al compartir por WhatsApp,
+#  Instagram y Facebook, que es como se reparte la app. Con el
+#  archivo puesto, el enlace que manda Vivi llega como una URL
+#  pelada en vez de una tarjeta con nombre y descripcion.
 # ============================================================
 
 User-agent: *

@@ -8,9 +8,12 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 > —y publicando— la versión anterior sin darte cuenta.
 
 > **Solo para el lanzamiento público: borrar `robots.txt`.** Mientras el sitio
-> está en pruebas ese archivo bloquea a todos los buscadores con `Disallow: /`.
-> Si sobrevive al día del lanzamiento, `preciocrea.parg.cl` nace invisible para
-> Google. No aplica a las entregas de prueba: solo a la que abre el sitio al público.
+> está en pruebas bloquea a todos los rastreadores con `Disallow: /`. El motivo
+> para borrarlo no es Google —la app es gratuita y no necesita búsquedas— sino
+> que ese `Disallow` también bloquea a `facebookexternalhit`, el rastreador que
+> arma la **vista previa al compartir por WhatsApp e Instagram**, que es como se
+> reparte la app. Con el archivo puesto, el enlace llega como URL pelada.
+> No aplica a las entregas de prueba: solo a la que abre el sitio al público.
 
 ## Smoke test (5 min)
 
