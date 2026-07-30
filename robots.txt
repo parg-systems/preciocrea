@@ -1,0 +1,13 @@
+# ============================================================
+#  TEMPORAL — QUITAR ANTES DEL LANZAMIENTO DE AGOSTO DE 2026
+# ============================================================
+#  Mientras el sitio esta en pruebas, se bloquea a los
+#  buscadores para que la URL no se indexe antes de tiempo.
+#
+#  Si este archivo sigue aqui el dia del lanzamiento, el sitio
+#  nace invisible para Google. Borrarlo (o dejar el Disallow
+#  vacio) es el ultimo paso antes de publicar.
+# ============================================================
+
+User-agent: *
+Disallow: /

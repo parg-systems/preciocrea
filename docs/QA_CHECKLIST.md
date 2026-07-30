@@ -7,6 +7,11 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 > los archivos viejos, no aparece el banner de actualización, y estarás probando
 > —y publicando— la versión anterior sin darte cuenta.
 
+> **Solo para el lanzamiento público: borrar `robots.txt`.** Mientras el sitio
+> está en pruebas ese archivo bloquea a todos los buscadores con `Disallow: /`.
+> Si sobrevive al día del lanzamiento, `preciocrea.parg.cl` nace invisible para
+> Google. No aplica a las entregas de prueba: solo a la que abre el sitio al público.
+
 ## Smoke test (5 min)
 
 - [ ] Abrir `index.html` directo en navegador local — la app renderiza sin errores en la consola.
