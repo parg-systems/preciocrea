@@ -7,7 +7,8 @@ const S = {
     matTotal:0, hours:0, rate:0,
     cr:'facil', fixed:0, units:20, margin:50
   },
-  products: []
+  products: [],
+  thumbs: {}
 };
 
 // Texto del buscador de la pestaña Productos. Vive aquí arriba a propósito:
@@ -43,6 +44,7 @@ const KEY_BACKUP    = 'pc_last_backup';
 const KEY_WELCOME   = 'pc_welcome_20';
 const KEY_RATE      = 'pc_rate_v1';    // asistente de valor hora
 const KEY_FIXED     = 'pc_fixed_v1';   // asistente de costos fijos
+const KEY_THUMBS    = 'pc_thumbs_v1';  // miniaturas de producto (id → data URL)
 
 // ===================================================
 // VALOR HORA — referencias
@@ -667,9 +669,11 @@ function renderProducts() {
     return;
   }
 
-  list.innerHTML = visibles.map(p => `
+  list.innerHTML = visibles.map(p => {
+    const thumb = getThumb(p.id);
+    return `
     <div class="product-card" data-action="showDetail" data-id="${p.id}" role="button" tabindex="0" aria-label="Abrir ${esc(p.name)}">
-      <div class="pc-emoji">${p.emoji ? esc(p.emoji) : '🎨'}</div>
+      <div class="pc-emoji${thumb ? ' has-thumb' : ''}">${thumb ? `<img class="pc-thumb" src="${thumb}" alt="">` : (p.emoji ? esc(p.emoji) : '🎨')}</div>
       <div class="pc-info">
         <div class="pc-name">${esc(p.name)}</div>
         ${p.desc ? `<div class="pc-desc">${esc(p.desc)}</div>` : ''}
@@ -682,7 +686,8 @@ function renderProducts() {
         <button class="pc-studio" data-action="openStudio" data-id="${p.id}" title="Publicar" aria-label="Publicar ${esc(p.name)}">📸</button>
         <button class="pc-delete" data-action="delProduct" data-id="${p.id}" title="Eliminar" aria-label="Eliminar ${esc(p.name)}">🗑️</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function filterProducts(value) {
@@ -1620,6 +1625,7 @@ function delProduct(e, id) {
     // zombi en pantalla (el producto seguía visible pero ya no existía en
     // memoria) y el borrado se colaba a disco con el siguiente guardado.
     if (!persistProducts()) { S.products = antes; return; }
+    removeThumb(id);
     renderHome();
     renderProducts();
     toast('🗑️ Producto eliminado');
@@ -1854,6 +1860,83 @@ function persistProducts() {
     );
     return false;
   }
+}
+
+// ===================================================
+// MINIATURAS DE PRODUCTO
+// ===================================================
+// Mapa id → data URL JPEG de 200px, en clave propia (pc_thumbs_v1) y NO como
+// campo del producto: así sanitizeImportedProduct y el respaldo JSON quedan
+// intactos (las miniaturas no viajan en el export, a propósito), y un fallo de
+// cuota aquí jamás compromete persistProducts(). La miniatura es best-effort:
+// se genera en el Estudio al subir la foto (studioMakeThumb) y si no se puede
+// guardar, la app sigue igual, solo que la lista muestra el emoji.
+
+// Tope por miniatura (longitud del data URL). Vive aquí y no en studio.js
+// porque loadThumbs() corre en el arranque, antes de que studio.js se evalúe.
+const THUMB_MAX_STORED = 30 * 1024;
+
+function loadThumbs() {
+  let raw = null;
+  try {
+    raw = JSON.parse(localStorage.getItem(KEY_THUMBS) || 'null');
+  } catch(e) {
+    return {};
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+
+  const out = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const id = Number(k);
+    if (!Number.isFinite(id) || id <= 0) continue;
+    if (typeof v !== 'string' || v.length > THUMB_MAX_STORED) continue;
+    if (!v.startsWith('data:image/jpeg;base64,')) continue;
+    out[id] = v;
+  }
+  return out;
+}
+
+// Sin toast: nadie pidió "guardar miniatura", así que no hay acción que
+// reportar como fallida (contraste con persistProducts, donde sí).
+function persistThumbs() {
+  try {
+    localStorage.setItem(KEY_THUMBS, JSON.stringify(S.thumbs));
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+function getThumb(id) {
+  return S.thumbs[id] || null;
+}
+
+function setThumb(id, url) {
+  const previo = S.thumbs[id];
+  S.thumbs[id] = url;
+  // Si no se pudo escribir, se revierte: una miniatura solo en memoria se
+  // pintaría en la lista y desaparecería al recargar, que confunde más que
+  // no haberla mostrado nunca.
+  if (!persistThumbs()) {
+    if (previo === undefined) delete S.thumbs[id]; else S.thumbs[id] = previo;
+  }
+}
+
+function removeThumb(id) {
+  if (S.thumbs[id] === undefined) return;
+  delete S.thumbs[id];
+  persistThumbs();
+}
+
+// Al arranque: suelta las miniaturas de productos que ya no existen (borrados
+// cuyo persist falló, respaldos restaurados con otra lista, etc.).
+function pruneThumbs() {
+  const vivos = new Set(S.products.map(p => Number(p.id)));
+  let cambio = false;
+  for (const k of Object.keys(S.thumbs)) {
+    if (!vivos.has(Number(k))) { delete S.thumbs[k]; cambio = true; }
+  }
+  if (cambio) persistThumbs();
 }
 
 // ===================================================
@@ -2585,6 +2668,8 @@ Object.assign(CAMBIOS, {
 // ninguna función puede pisar una zona muerta temporal (ver nota en INIT).
 (function init() {
   S.products = loadProducts();
+  S.thumbs   = loadThumbs();
+  pruneThumbs();
   S.rate     = loadRate();
   S.fixed    = loadFixed();
   // Antes que la bienvenida: showWelcome() arma la entrada guardián y el

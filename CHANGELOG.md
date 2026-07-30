@@ -8,6 +8,30 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 
 ---
 
+## [2.2.0] — 2026-07-30 · miniaturas de producto en la lista
+
+### Añadido
+
+- **La foto del producto deja huella.** Al subir una foto en el Estudio se
+  genera una miniatura de 200×200 (JPEG, center-crop sobre fondo blanco,
+  ~10-20 KB) que reemplaza al emoji en la tarjeta de la lista de productos,
+  con el emoji como fallback cuando no hay foto. La foto grande sigue viviendo
+  solo en memoria: la decisión de diseño de no persistirla no cambia.
+- La miniatura vive en una clave propia de localStorage (`pc_thumbs_v1`,
+  mapa id → data URL con tope de 30 KB por entrada), separada de `pc_v1`:
+  el respaldo JSON no la incluye a propósito y `sanitizeImportedProduct`,
+  `exportData` e `importData` quedan intactos. Carga defensiva (rechaza
+  JSON corrupto, prefijos que no sean JPEG e ids inválidos), poda de
+  huérfanos al arranque y borrado junto con el producto. Todo best-effort:
+  si la cuota está llena, la subida de foto al Estudio sigue igual, solo
+  que sin miniatura.
+- Verificado en navegador contra la app corriendo: subida de PNG con
+  transparencia (fondo blanco, no negro), persistencia tras recargar,
+  arranque limpio con `pc_thumbs_v1` corrupto o con entradas maliciosas,
+  eliminación junto al producto y respaldo JSON sin miniaturas. Cero
+  errores de consola.
+- `BUILD` sube a 9.
+
 ## [2.1.1] — 2026-07-30 · CSP completamente estricta: adiós a los estilos en línea
 
 Se paga la última deuda de la CSP: los ~87 atributos de estilo en línea del

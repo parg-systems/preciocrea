@@ -1506,17 +1506,23 @@ function studioDrawPhoto(ctx, slot, slide, pal, W, H) {
 // ===================================================
 // STUDIO — FOTOS
 // ===================================================
-// Las fotos viven SOLO en memoria, a propósito. Una foto de 1080x1350 en
-// base64 pesa entre 330 y 600 KB, sobre un presupuesto de localStorage de
+// Las fotos GRANDES viven SOLO en memoria, a propósito. Una foto de 1080x1350
+// en base64 pesa entre 330 y 600 KB, sobre un presupuesto de localStorage de
 // ~5 MB que ya comparte con pc_v1: con cinco fotos, persistProducts()
 // empezaría a fallar y la creadora perdería la capacidad de guardar
 // productos, que es el corazón de la app. IndexedDB queda descartado por
 // ahora porque en file:// es errático y el archivo portable es un requisito
 // duro. Todo pasa por studioGetPhoto/studioSetPhoto, así que añadir una capa
 // persistente más adelante es cambiar dos funciones.
+//
+// Lo que SÍ se persiste es una miniatura de 200px (~10-20 KB en JPEG) por
+// producto, generada aquí al subir la foto y guardada en pc_thumbs_v1 vía
+// setThumb() (app.js → MINIATURAS DE PRODUCTO). Queda fuera del respaldo
+// JSON a propósito: es un recuerdo visual para la lista, no un dato.
 const STUDIO_PHOTO_MAX = 1800;    // px del lado mayor
 const STUDIO_PHOTO_MAX_BYTES = 20 * 1024 * 1024;
 const STUDIO_ZOOM_MAX = 2.5;
+const STUDIO_THUMB_SIZE = 200;    // lado de la miniatura persistida
 
 function studioGetPhoto(slide) {
   return (slide && slide.photo) || null;
@@ -1584,6 +1590,25 @@ function studioCoverRect(sw0, sh0, dw, dh, zoom, ox, oy) {
   return { sx: maxX * clamp01(ox), sy: maxY * clamp01(oy), sw, sh };
 }
 
+// Miniatura cuadrada para la lista de productos: center-crop (el frame recién
+// reseteado equivale a cover centrado) sobre fondo blanco — JPEG no tiene alfa
+// y un PNG transparente saldría negro, mismo gotcha que el logo. Devuelve un
+// data URL, o null si ni bajando la calidad cabe en el tope.
+function studioMakeThumb(photo) {
+  const size = STUDIO_THUMB_SIZE;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+  const r = studioCoverRect(photo.width, photo.height, size, size, 1, 0, 0);
+  ctx.drawImage(photo, r.sx, r.sy, r.sw, r.sh, 0, 0, size, size);
+  let url = c.toDataURL('image/jpeg', 0.72);
+  if (url.length > THUMB_MAX_STORED) url = c.toDataURL('image/jpeg', 0.5);
+  c.width = c.height = 0;   // iOS no libera solo
+  return url.length <= THUMB_MAX_STORED ? url : null;
+}
+
 async function studioPickPhoto(input) {
   const file = input.files && input.files[0];
   input.value = '';
@@ -1594,7 +1619,17 @@ async function studioPickPhoto(input) {
 
   try {
     const canvas = await studioLoadPhoto(file);
-    studioSetPhoto(studioActiveSlide(), canvas);
+    const slide  = studioActiveSlide();
+    studioSetPhoto(slide, canvas);
+    // La portada del catálogo no tiene productId: ahí no hay a quién colgarle
+    // la miniatura. El fallo silencioso es deliberado: la miniatura es un
+    // extra, la foto del Estudio no depende de ella.
+    if (slide && slide.productId) {
+      try {
+        const t = studioMakeThumb(canvas);
+        if (t) setThumb(slide.productId, t);
+      } catch(e) {}
+    }
     studioRequestPreview();
     renderStudioPhotoBar();
     toast('📷 ¡Foto lista! Arrástrala para encuadrar');

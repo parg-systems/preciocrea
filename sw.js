@@ -12,8 +12,8 @@
 // estaba publicado y nadie lo veía.
 //
 // Regla: si tocas index.html, css/ o js/, sube BUILD. Siempre.
-const VERSION = '2.1.1';
-const BUILD   = 8;
+const VERSION = '2.2.0';
+const BUILD   = 9;
 const CACHE = `preciocrea-${VERSION}-b${BUILD}`;
 const ASSETS = [
   './',

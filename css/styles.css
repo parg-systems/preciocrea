@@ -1074,6 +1074,10 @@ body.sheet-open .app { padding-bottom: 40px; }
   background: linear-gradient(140deg, #FFF3DC, var(--coral-light));
 }
 
+/* Con miniatura de foto: misma caja, la imagen llena el hueco. */
+.pc-emoji.has-thumb { overflow: hidden; background: #fff; }
+.pc-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 .pc-info { flex: 1; min-width: 0; }
 
 .pc-name {
