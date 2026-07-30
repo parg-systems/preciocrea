@@ -12,8 +12,8 @@
 // estaba publicado y nadie lo veía.
 //
 // Regla: si tocas index.html, css/ o js/, sube BUILD. Siempre.
-const VERSION = '2.0.1';
-const BUILD   = 6;
+const VERSION = '2.1.0';
+const BUILD   = 7;
 const CACHE = `preciocrea-${VERSION}-b${BUILD}`;
 const ASSETS = [
   './',
@@ -24,6 +24,7 @@ const ASSETS = [
   './manifest.webmanifest',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
+  './assets/icons/icon-180.png',
   './assets/icons/icon-192-maskable.png',
   './assets/icons/icon-512-maskable.png',
   // Las tipografías se precachean como todo lo demás: son parte de la

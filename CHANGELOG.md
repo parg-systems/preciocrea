@@ -8,6 +8,58 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 
 ---
 
+## [2.1.0] — 2026-07-30 · botón Atrás, CSP estricta y cierre de pendientes
+
+### Añadido
+
+- **El botón Atrás de Android ya no saca de la app.** Retrocede como se
+  espera: cierra el modal o la bienvenida si están abiertos, retrocede paso a
+  paso dentro de la calculadora, cierra la pantalla activa (resultados,
+  detalle, respaldo, guía, asistentes, Estudio — con sus mismos avisos de
+  trabajo sin guardar), vuelve a Inicio desde cualquier pestaña, y solo desde
+  Inicio, sin nada abierto, sale de la app. Implementado con una entrada
+  guardián en `history` que cada `popstate` re-arma y despacha la misma
+  acción que harían el ← o Escape.
+- **Ficha de instalación enriquecida en Android**: el manifest declara dos
+  capturas reales (Inicio y Resultados, `form_factor: narrow`).
+
+### Seguridad
+
+- **CSP sin `unsafe-inline` en `script-src`.** Los 182 manejadores en línea
+  (`onclick`/`oninput`/`onchange`, incluidos los del marcado generado por
+  JS) se migraron a delegación de eventos con `data-action` / `data-input` /
+  `data-change` y tres listeners en `app.js`. Un script inyectado ya no puede
+  ejecutarse ni como atributo de evento. `style-src` conserva
+  `'unsafe-inline'` (los `style=""` de presentación siguen; deuda aceptada).
+- El **portable** es la excepción deliberada: su JS viaja inline dentro del
+  archivo, así que `build-portable.js` reescribe la meta CSP para permitirlo
+  y falla ruidosamente si esa sustitución no ocurre.
+
+### Corregido
+
+- **«Guardar cambios» sin cambios ya no mueve el precio**: recalcular desde
+  las partes redondeadas derivaba ±$1-2 en cada guardado. Ahora es un no-op
+  con aviso.
+- **Icono de iOS nítido**: `apple-touch-icon` de 180×180 real
+  (`icon-180.png`, también precacheado) en vez del de 192 reescalado.
+- Metas nuevas: `description` y `mobile-web-app-capable` (adiós al aviso de
+  deprecación de Chrome).
+
+### Cambiado
+
+- Los MP3 sin referenciar (~11 MB) salen de `assets/audio/` hacia
+  `_archivo/audio/`: se conservan en el repo pero no se publicarían con la
+  app.
+- `build-portable.js`: además del parche de CSP, quita el `apple-touch-icon`
+  (el portable no se instala) y vigila que ninguna referencia a
+  `assets/icons/` sobreviva al inlineado.
+
+### Notas
+
+- `BUILD` sube a 7. Fórmulas intactas: el caso de continuidad sigue dando
+  $28.162 / $42.243 (verificado en navegador, junto con cero violaciones CSP
+  y el recorrido completo del botón Atrás).
+
 ## [2.0.1] — 2026-07-29 · revisión general: bugs y experiencia de uso
 
 Auditoría completa de la 2.0.0 (lógica, UI/UX e infraestructura PWA) con

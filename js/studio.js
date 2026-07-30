@@ -10,9 +10,9 @@
 //      DIBUJA POR CÓDIGO (gradientes y formas en Canvas 2D); no hay ni un
 //      solo asset binario nuevo.
 //   2. Sin módulos ES: este archivo se carga con <script src> clásico y todo
-//      queda en el scope global, igual que app.js, para poder invocarlo desde
-//      los onclick del HTML. Prefijo obligatorio studio*/STUDIO_* para no
-//      colisionar con app.js.
+//      queda en el scope global, igual que app.js, para compartir los
+//      registros de delegación (ACCIONES/ENTRADAS/CAMBIOS) declarados allá.
+//      Prefijo obligatorio studio*/STUDIO_* para no colisionar con app.js.
 //   3. Se carga DESPUÉS de app.js y reutiliza sus helpers:
 //      toast, confirmDialog, esc, fmt, getEmoji, isIos, IVA, S.products.
 
@@ -257,7 +257,7 @@ function renderHubStyles() {
   const slide = studioProductSlide(S.products[0] || STUDIO_DEMO_PRODUCT, b.priceMode);
 
   strip.innerHTML = tpls.map(t => `
-    <button type="button" class="style-thumb" onclick="openStudioPicker('${t.id}')" title="${esc(t.desc)}">
+    <button type="button" class="style-thumb" data-action="openStudioPicker" data-tpl="${t.id}" title="${esc(t.desc)}">
       <canvas class="stt-canvas" data-tpl="${t.id}" aria-label="Estilo ${esc(t.name)}"></canvas>
       <span class="stt-name">${esc(t.name)}</span>
     </button>`).join('');
@@ -280,26 +280,26 @@ function renderBrandForm() {
   const swatches = STUDIO_ACCENTS.map(hex => `
     <button type="button" class="brand-swatch${b.accent === hex ? ' sel' : ''}"
             data-hex="${hex}" style="background:${hex}"
-            onclick="setBrandAccent('${hex}')"
+            data-action="setBrandAccent"
             aria-label="Color ${hex}"></button>`).join('');
 
   const priceChips = STUDIO_PRICE_MODES.map(m => `
     <button type="button" class="m-btn brand-price-chip${b.priceMode === m ? ' active' : ''}"
-            data-mode="${m}" onclick="setBrandPriceMode('${m}')">
+            data-mode="${m}" data-action="setBrandPriceMode">
       ${esc(STUDIO_PRICE_LABELS[m])}
     </button>`).join('');
 
   document.getElementById('brand-body').innerHTML = `
     <label class="field-label" for="brand-name">Nombre de tu marca</label>
     <input class="field-input" type="text" id="brand-name" maxlength="${MAX_BRAND_NAME}"
-           placeholder="Ej: Telar de Luna" value="${esc(b.name)}" oninput="previewBrand()">
+           placeholder="Ej: Telar de Luna" value="${esc(b.name)}" data-input="previewBrand">
 
     <label class="field-label" style="margin-top:16px" for="brand-handle">Tu Instagram</label>
     <div class="brand-handle-wrap">
       <span class="brand-handle-at">@</span>
       <input class="field-input brand-handle-input" type="text" id="brand-handle"
              maxlength="${MAX_BRAND_HANDLE}" placeholder="telardeluna"
-             value="${esc(b.handle)}" oninput="previewBrand()">
+             value="${esc(b.handle)}" data-input="previewBrand">
     </div>
 
     <div class="field-label" style="margin-top:18px">Tu logo <span class="field-optional">opcional</span></div>
@@ -307,20 +307,20 @@ function renderBrandForm() {
       ? `<div class="logo-box">
            <div class="logo-preview"><img src="${esc(b.logo)}" alt="Tu logo"></div>
            <div class="logo-actions">
-             <button type="button" class="studio-photo-btn" onclick="document.getElementById('brand-logo-file').click()">🔄 Cambiar</button>
-             <button type="button" class="studio-photo-btn danger" onclick="removeBrandLogo()">🗑️ Quitar</button>
+             <button type="button" class="studio-photo-btn" data-action="clickTarget" data-target="brand-logo-file">🔄 Cambiar</button>
+             <button type="button" class="studio-photo-btn danger" data-action="removeBrandLogo">🗑️ Quitar</button>
            </div>
          </div>`
       : `<button type="button" class="studio-photo-btn primary"
-                 onclick="document.getElementById('brand-logo-file').click()">🖼️ Subir mi logo</button>`}
+                 data-action="clickTarget" data-target="brand-logo-file">🖼️ Subir mi logo</button>`}
     <input type="file" id="brand-logo-file" accept="image/*" style="display:none"
-           onchange="studioPickLogo(this)">
+           data-change="studioPickLogo">
     <div class="field-hint">Si subes un logo, reemplaza a tu nombre escrito en las publicaciones. Un PNG con fondo transparente y de color claro funciona en todos los estilos, incluidos los de fondo oscuro.</div>
 
     <div class="field-label" style="margin-top:18px">Tu color</div>
     <div class="brand-swatches" id="brand-swatches">${swatches}</div>
     <label class="brand-custom-color">
-      <input type="color" id="brand-color" value="${esc(b.accent)}" oninput="setBrandAccent(this.value)">
+      <input type="color" id="brand-color" value="${esc(b.accent)}" data-input="brandAccentLibre">
       <span>Elegir otro color</span>
     </label>
 
@@ -329,11 +329,11 @@ function renderBrandForm() {
     <div class="field-hint">«Precio» publica tu precio ideal con el IVA ya incluido: es lo que paga quien te compra.</div>
 
     <label class="brand-toggle">
-      <input type="checkbox" id="brand-credit" ${b.credit ? 'checked' : ''} onchange="previewBrand()">
+      <input type="checkbox" id="brand-credit" ${b.credit ? 'checked' : ''} data-change="previewBrand">
       <span>Mostrar «hecho con PrecioCrea» en la publicación</span>
     </label>
 
-    <button class="btn-save" onclick="saveBrandForm()">Guardar mi marca</button>`;
+    <button class="btn-save" data-action="saveBrandForm">Guardar mi marca</button>`;
 
   previewBrand();
 }
@@ -1857,7 +1857,7 @@ function renderStudioPick() {
   const cards = S.products.map(p => {
     const i = sel.indexOf(p.id);
     return `
-      <div class="pick-card${i >= 0 ? ' sel' : ''}" onclick="toggleStudioPick(${p.id})"
+      <div class="pick-card${i >= 0 ? ' sel' : ''}" data-action="toggleStudioPick" data-id="${p.id}"
            role="button" tabindex="0" aria-pressed="${i >= 0}" aria-label="${multi ? 'Elegir' : 'Publicar'} ${esc(p.name)}">
         ${multi ? `<div class="pick-check">${i >= 0 ? (i + 1) : ''}</div>` : ''}
         <div class="pc-emoji">${p.emoji ? esc(p.emoji) : '🎨'}</div>
@@ -1880,7 +1880,7 @@ function renderStudioPick() {
 
        <div class="pick-toolbar">
          <span class="pick-count">${sel.length} de ${STUDIO_MAX_PRODUCTS}</span>
-         <button type="button" class="pick-all" onclick="selectAllStudioPick()">Seleccionar varias</button>
+         <button type="button" class="pick-all" data-action="selectAllStudioPick">Seleccionar varias</button>
        </div>
 
        <div class="pick-list">${cards}</div>
@@ -1894,13 +1894,13 @@ function renderStudioPick() {
               placeholder="Hecho a mano" value="${esc(b.name)} · hecho a mano">
 
        <div class="studio-actions" style="padding-left:0; padding-right:0">
-         <button class="btn-violet" onclick="startCatalogo()">Continuar →</button>
-         <button class="btn-new-calc" onclick="showView('view-studio-hub')">← Volver al Estudio</button>
+         <button class="btn-violet" data-action="startCatalogo">Continuar →</button>
+         <button class="btn-new-calc" data-action="showView" data-view="view-studio-hub">← Volver al Estudio</button>
        </div>`
     : `<p class="brand-intro">¿De cuál producto quieres hacer una historia? 📱</p>
        <div class="pick-list">${cards}</div>
        <div class="studio-actions" style="padding-left:0; padding-right:0">
-         <button class="btn-new-calc" onclick="showView('view-studio-hub')">← Volver al Estudio</button>
+         <button class="btn-new-calc" data-action="showView" data-view="view-studio-hub">← Volver al Estudio</button>
        </div>`;
 }
 
@@ -1976,7 +1976,7 @@ function renderStudioSlides() {
     <div class="slide-strip-row">
       ${p.slides.map((s, i) => `
         <button type="button" class="slide-chip${i === p.active ? ' sel' : ''}"
-                onclick="setStudioSlide(${i})">
+                data-action="setStudioSlide" data-i="${i}">
           <span class="slide-chip-n">${i + 1}</span>
           <span class="slide-chip-t">${s.kind === 'cover' ? '📣 Portada' : esc(s.name)}</span>
         </button>`).join('')}
@@ -2079,7 +2079,7 @@ function renderStudioEdit() {
 
     <div class="studio-photo-bar" id="studio-photo-bar"></div>
     <input type="file" id="studio-file" accept="image/*" style="display:none"
-           onchange="studioPickPhoto(this)">
+           data-change="studioPickPhoto">
 
     <div class="studio-controls">
       <div class="field-label">Estilo</div>
@@ -2093,7 +2093,7 @@ function renderStudioEdit() {
     <div class="studio-actions">
       ${studioActionButtons(p, multi)}
       <div class="studio-hint">La foto no se guarda: vive solo mientras editas esta publicación.</div>
-      <button class="btn-new-calc" onclick="closeStudio()">← Volver al Estudio</button>
+      <button class="btn-new-calc" data-action="closeStudio">← Volver al Estudio</button>
     </div>`;
 
   renderStudioFields();
@@ -2111,23 +2111,23 @@ function studioActionButtons(p, multi) {
   // aquí no se guarda nada, se saca la pieza hacia afuera.
   if (!multi) {
     return share
-      ? `<button class="btn-violet" onclick="studioShareActive()">📤 Compartir</button>
-         <button class="btn-new-calc" onclick="studioDownloadActive()">⬇️ Descargar imagen</button>`
-      : `<button class="btn-violet" onclick="studioDownloadActive()">⬇️ Descargar imagen</button>`;
+      ? `<button class="btn-violet" data-action="studioShareActive">📤 Compartir</button>
+         <button class="btn-new-calc" data-action="studioDownloadActive">⬇️ Descargar imagen</button>`
+      : `<button class="btn-violet" data-action="studioDownloadActive">⬇️ Descargar imagen</button>`;
   }
 
   // En iOS <a download> solo baja un archivo por gesto, así que la acción
   // masiva tiene que ser compartir; la lista lámina a lámina siempre está.
   if (share && isIos()) {
-    return `<button class="btn-violet" onclick="studioShareAll()">📤 Compartir las ${n} láminas</button>
+    return `<button class="btn-violet" data-action="studioShareAll">📤 Compartir las ${n} láminas</button>
             ${prog}
-            <button class="btn-new-calc" onclick="studioShareActive()">📤 Solo esta lámina</button>`;
+            <button class="btn-new-calc" data-action="studioShareActive">📤 Solo esta lámina</button>`;
   }
-  return `<button class="btn-violet" onclick="studioDownloadAll()">⬇️ Descargar las ${n} láminas</button>
+  return `<button class="btn-violet" data-action="studioDownloadAll">⬇️ Descargar las ${n} láminas</button>
           ${prog}
           <div class="studio-hint" style="margin:-4px 0 0">Tu navegador puede pedirte permiso para descargar varios archivos: toca Permitir.</div>
           <button class="btn-new-calc"
-                  onclick="${share ? 'studioShareActive()' : 'studioDownloadActive()'}">
+                  data-action="${share ? 'studioShareActive' : 'studioDownloadActive'}">
             ${share ? '📤 Compartir' : '⬇️ Descargar'} solo esta lámina
           </button>`;
 }
@@ -2145,29 +2145,29 @@ function renderStudioFields() {
     box.innerHTML = `
       <label class="field-label" for="studio-headline">Título de la portada</label>
       <input class="field-input" type="text" id="studio-headline" maxlength="60"
-             value="${esc(slide.headline || '')}" oninput="setStudioField('headline',this.value,60)">
+             value="${esc(slide.headline || '')}" data-input="setStudioField" data-field="headline" data-max="60">
 
       <label class="field-label" style="margin-top:16px" for="studio-subhead">Bajada</label>
       <input class="field-input" type="text" id="studio-subhead" maxlength="90"
-             value="${esc(slide.subhead || '')}" oninput="setStudioField('subhead',this.value,90)">`;
+             value="${esc(slide.subhead || '')}" data-input="setStudioField" data-field="subhead" data-max="90">`;
     return;
   }
 
   const priceChips = STUDIO_PRICE_MODES.map(m => `
     <button type="button" class="m-btn studio-price-chip${p.priceMode === m ? ' active' : ''}"
-            data-mode="${m}" onclick="setStudioPriceMode('${m}')">
+            data-mode="${m}" data-action="setStudioPriceMode">
       ${esc(STUDIO_PRICE_LABELS[m])}
     </button>`).join('');
 
   box.innerHTML = `
     <label class="field-label" for="studio-name">Nombre en la publicación</label>
     <input class="field-input" type="text" id="studio-name" maxlength="${MAX_NAME_LEN}"
-           value="${esc(slide.name || '')}" oninput="setStudioName(this.value)">
+           value="${esc(slide.name || '')}" data-input="setStudioName">
 
     <label class="field-label" style="margin-top:16px" for="studio-desc">Descripción</label>
     <textarea class="field-input field-textarea" id="studio-desc" rows="2" maxlength="${MAX_DESC_LEN}"
               placeholder="Una frase corta sobre tu producto"
-              oninput="setStudioField('desc',this.value,${MAX_DESC_LEN})">${esc(slide.desc || '')}</textarea>
+              data-input="setStudioField" data-field="desc" data-max="${MAX_DESC_LEN}">${esc(slide.desc || '')}</textarea>
     <div class="field-hint">Solo cambia esta publicación; no toca el producto guardado.</div>
 
     <div class="field-label" style="margin-top:16px">Precio${p.slides.length > 1 ? ' (en todas las láminas)' : ''}</div>
@@ -2186,18 +2186,18 @@ function renderStudioAccent() {
   const swatches = STUDIO_ACCENTS.map(hex => `
     <button type="button" class="brand-swatch${actual === hex ? ' sel' : ''}"
             data-hex="${hex}" style="background:${hex}"
-            onclick="setStudioAccent('${hex}')" aria-label="Color ${hex}"></button>`).join('');
+            data-action="setStudioAccent" aria-label="Color ${hex}"></button>`).join('');
 
   box.innerHTML = `
     <div class="field-label">Color de esta publicación</div>
     <div class="brand-swatches">${swatches}</div>
     <div class="studio-accent-row">
       <label class="brand-custom-color">
-        <input type="color" id="studio-color" value="${esc(actual)}" oninput="setStudioAccent(this.value)">
+        <input type="color" id="studio-color" value="${esc(actual)}" data-input="studioAccentLibre">
         <span>Otro color</span>
       </label>
       ${actual.toUpperCase() !== deMarca.toUpperCase()
-        ? `<button type="button" class="studio-accent-reset" onclick="setStudioAccent('${deMarca}')">
+        ? `<button type="button" class="studio-accent-reset" data-action="setStudioAccent" data-hex="${deMarca}">
              ↺ Volver al de mi marca
            </button>`
         : ''}
@@ -2234,7 +2234,7 @@ function renderStudioTemplates() {
 
   strip.innerHTML = tpls.map(t => `
     <button type="button" class="studio-tpl${t.id === p.templateId ? ' sel' : ''}"
-            onclick="setStudioTemplate('${t.id}')" title="${esc(t.desc)}">
+            data-action="setStudioTemplate" data-tpl="${t.id}" title="${esc(t.desc)}">
       <canvas class="studio-tpl-canvas" data-tpl="${t.id}"></canvas>
       <span class="studio-tpl-name">${esc(t.name)}</span>
     </button>`).join('');
@@ -2275,7 +2275,7 @@ function renderStudioPhotoBar() {
 
   if (!tiene) {
     bar.innerHTML = `
-      <button class="studio-photo-btn primary" onclick="document.getElementById('studio-file').click()">
+      <button class="studio-photo-btn primary" data-action="clickTarget" data-target="studio-file">
         📷 Agregar foto del producto
       </button>`;
     return;
@@ -2283,13 +2283,13 @@ function renderStudioPhotoBar() {
 
   bar.innerHTML = `
     <div class="studio-photo-row">
-      <button class="studio-photo-btn" onclick="document.getElementById('studio-file').click()">📷 Cambiar</button>
-      <button class="studio-photo-btn" onclick="studioCenterPhoto()">↺ Centrar</button>
+      <button class="studio-photo-btn" data-action="clickTarget" data-target="studio-file">📷 Cambiar</button>
+      <button class="studio-photo-btn" data-action="studioCenterPhoto">↺ Centrar</button>
     </div>
     <div class="studio-zoom-row">
       <span class="studio-zoom-lbl">🔍</span>
       <input type="range" id="studio-zoom" min="1" max="${STUDIO_ZOOM_MAX}" step="0.01"
-             value="${slide.frame.zoom}" oninput="setStudioZoom(this.value)"
+             value="${slide.frame.zoom}" data-input="setStudioZoom"
              aria-label="Acercar la foto">
     </div>
     <div class="studio-hint">Arrastra la foto sobre la vista previa para encuadrarla</div>`;
@@ -2578,6 +2578,54 @@ async function studioDownloadAll() {
     STUDIO._busy = false;
   }
 }
+
+// ===================================================
+// STUDIO — REGISTRO DE ACCIONES
+// ===================================================
+// Se agregan a los registros de delegación declarados en app.js (mismo ámbito
+// global de scripts clásicos). Ver la sección DELEGACIÓN DE EVENTOS allá.
+Object.assign(ACCIONES, {
+  // Hub y selector
+  openStudioPicker:    el => openStudioPicker(el.dataset.tpl || undefined),
+  openCatalogo:        () => openCatalogo(),
+  toggleStudioPick:    el => toggleStudioPick(Number(el.dataset.id)),
+  selectAllStudioPick: () => selectAllStudioPick(),
+  startCatalogo:       () => startCatalogo(),
+
+  // Tu marca
+  setBrandAccent:    el => setBrandAccent(el.dataset.hex),
+  setBrandPriceMode: el => setBrandPriceMode(el.dataset.mode),
+  removeBrandLogo:   () => removeBrandLogo(),
+  saveBrandForm:     () => saveBrandForm(),
+
+  // Editor
+  setStudioSlide:       el => setStudioSlide(Number(el.dataset.i)),
+  closeStudio:          () => closeStudio(),
+  setStudioPriceMode:   el => setStudioPriceMode(el.dataset.mode),
+  setStudioAccent:      el => setStudioAccent(el.dataset.hex),
+  setStudioTemplate:    el => setStudioTemplate(el.dataset.tpl),
+  studioCenterPhoto:    () => studioCenterPhoto(),
+  studioShareActive:    () => studioShareActive(),
+  studioDownloadActive: () => studioDownloadActive(),
+  studioShareAll:       () => studioShareAll(),
+  studioDownloadAll:    () => studioDownloadAll()
+});
+
+Object.assign(ENTRADAS, {
+  previewBrand:      () => previewBrand(),
+  // El <input type="color"> entrega el valor en .value, no en un data-attr.
+  brandAccentLibre:  el => setBrandAccent(el.value),
+  studioAccentLibre: el => setStudioAccent(el.value),
+  setStudioField:    el => setStudioField(el.dataset.field, el.value, Number(el.dataset.max)),
+  setStudioName:     el => setStudioName(el.value),
+  setStudioZoom:     el => setStudioZoom(el.value)
+});
+
+Object.assign(CAMBIOS, {
+  previewBrand:    () => previewBrand(),
+  studioPickLogo:  el => studioPickLogo(el),
+  studioPickPhoto: el => studioPickPhoto(el)
+});
 
 // ===================================================
 // STUDIO — INIT

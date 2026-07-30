@@ -83,8 +83,19 @@ out = out.replace(
 // 3) Reemplazar referencias a íconos y manifest por data URIs / inline
 out = out.replace(/href="\.\/assets\/icons\/icon-192\.png"/g, `href="${icon}"`);
 
+// 3b) CSP del portable: la app servida declara script-src 'self' a secas
+//     (no queda ni un manejador en línea), pero aquí el JS entero viaja en
+//     bloques <script> DENTRO del html — sin 'unsafe-inline' el navegador los
+//     bloquearía y el portable abriría en blanco. El modelo de amenaza del
+//     archivo local de doble clic es otro: se relaja solo script-src.
+out = out.replace(/script-src 'self';/, inline("script-src 'self' 'unsafe-inline';"));
+
 // 4) Quitar el link al manifest (no aplica en archivo único)
 out = out.replace(/<link\s+rel="manifest"[^>]*>\s*\n?/g, '');
+
+// 4a) Quitar el apple-touch-icon: el portable no se instala en ningún inicio,
+//     y dejarlo apuntando a ./assets/icons/ sería una referencia rota.
+out = out.replace(/<link\s+rel="apple-touch-icon"[^>]*>\s*\n?/g, '');
 
 // 4b) Quitar los preload de fuentes: en el portable ya viajan dentro del
 //     <style> como data: URI, y un preload apuntando a ./assets/fonts/ que no
@@ -111,6 +122,14 @@ if (scriptRefs) leftovers.push(...scriptRefs.map(s => s.match(/js\/[^"]+/)[0]));
 // portable pediría al disco y no encontraría.
 const fontRefs = out.match(/assets\/fonts\/[\w.-]+/g);
 if (fontRefs) leftovers.push(...new Set(fontRefs));
+// Y ningún icono del proyecto sin inlinear: un <img> o <link> nuevo que apunte
+// a assets/icons/ pasaría el build en silencio y se repartiría roto.
+const iconRefs = out.match(/assets\/icons\/[\w.-]+/g);
+if (iconRefs) leftovers.push(...new Set(iconRefs));
+// La CSP del portable DEBE haber quedado con 'unsafe-inline' en script-src:
+// si la sustitución no calzó (p. ej. cambió el orden de la meta), los <script>
+// inline quedan bloqueados y el archivo abre en blanco sin error visible.
+if (!/script-src 'self' 'unsafe-inline'/.test(out)) leftovers.push("CSP sin 'unsafe-inline' en script-src (portable roto)");
 // Y ningún origen externo, que es lo que este build vino a eliminar.
 const externos = out.match(/(?:href|src)="https?:\/\/(?!viviloaiza\.cl|instagram\.com|open\.spotify\.com|wa\.me)[^"]+"/g);
 if (externos) leftovers.push(...new Set(externos));

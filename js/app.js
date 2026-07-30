@@ -123,6 +123,42 @@ const ICONS = {
 };
 
 // ===================================================
+// DELEGACIÓN DE EVENTOS (CSP sin 'unsafe-inline')
+// ===================================================
+// Ningún control usa manejadores en línea: llevan data-action (click),
+// data-input (input) o data-change (change) y estos tres listeners los
+// despachan contra los registros. Así la CSP puede declarar script-src 'self'
+// a secas. studio.js agrega sus entradas a los mismos objetos al cargarse
+// (los const de nivel superior de un script clásico son visibles para los
+// scripts que cargan después).
+//
+// Cada evento despacha UNA sola acción: la del [data-*] más cercano al
+// target. Por eso el 📸 dentro de una tarjeta de producto ya no necesita
+// stopPropagation — la acción de la tarjeta ni se consulta.
+const ACCIONES = {};   // data-action  → (el, ev) => …
+const ENTRADAS = {};   // data-input   → (el, ev) => …
+const CAMBIOS  = {};   // data-change  → (el, ev) => …
+
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-action]');
+  if (!el) return;
+  const fn = ACCIONES[el.dataset.action];
+  if (fn) fn(el, ev);
+});
+document.addEventListener('input', ev => {
+  const el = ev.target.closest('[data-input]');
+  if (!el) return;
+  const fn = ENTRADAS[el.dataset.input];
+  if (fn) fn(el, ev);
+});
+document.addEventListener('change', ev => {
+  const el = ev.target.closest('[data-change]');
+  if (!el) return;
+  const fn = CAMBIOS[el.dataset.change];
+  if (fn) fn(el, ev);
+});
+
+// ===================================================
 // INIT
 // ===================================================
 // El arranque vive al FINAL del archivo. Corría aquí y en iPhone reventaba:
@@ -304,6 +340,8 @@ function showInstallGuide() {
     overlay.removeEventListener('click', onBg);
     document.removeEventListener('keydown', onKey);
   };
+  _modalAbierto = hideInstallGuide;
+  armarGuardia();
 
   overlay.classList.add('show');
   const btn = overlay.querySelector('.modal-btn');
@@ -315,6 +353,7 @@ function hideInstallGuide() {
   if (!overlay) return;
   overlay.classList.remove('show');
   if (overlay._cerrarGuia) { overlay._cerrarGuia(); overlay._cerrarGuia = null; }
+  _modalAbierto = null;
 }
 
 // ===================================================
@@ -365,6 +404,11 @@ function showView(id) {
   if (id === 'view-brand' && typeof renderBrandForm === 'function') {
     renderBrandForm(); renderRateRow(); renderFixedRow(); renderInstallRow();
   }
+
+  // Cualquier navegación re-arma la entrada guardián del botón Atrás: si la
+  // creadora "gastó" el guardián en Inicio y luego abre una pantalla, Atrás
+  // debe cerrarla, no sacarla de la app.
+  armarGuardia();
 
   // 'instant', no 'auto': según la especificación, `auto` significa "usa el
   // scroll-behavior calculado", que aquí es el `smooth` de la hoja de estilos.
@@ -624,7 +668,7 @@ function renderProducts() {
   }
 
   list.innerHTML = visibles.map(p => `
-    <div class="product-card" onclick="showDetail(${p.id})" role="button" tabindex="0" aria-label="Abrir ${esc(p.name)}">
+    <div class="product-card" data-action="showDetail" data-id="${p.id}" role="button" tabindex="0" aria-label="Abrir ${esc(p.name)}">
       <div class="pc-emoji">${p.emoji ? esc(p.emoji) : '🎨'}</div>
       <div class="pc-info">
         <div class="pc-name">${esc(p.name)}</div>
@@ -635,8 +679,8 @@ function renderProducts() {
         </div>
       </div>
       <div class="pc-actions">
-        <button class="pc-studio" onclick="event.stopPropagation();openStudio('historia',${p.id})" title="Publicar" aria-label="Publicar ${esc(p.name)}">📸</button>
-        <button class="pc-delete" onclick="delProduct(event,${p.id})" title="Eliminar" aria-label="Eliminar ${esc(p.name)}">🗑️</button>
+        <button class="pc-studio" data-action="openStudio" data-id="${p.id}" title="Publicar" aria-label="Publicar ${esc(p.name)}">📸</button>
+        <button class="pc-delete" data-action="delProduct" data-id="${p.id}" title="Eliminar" aria-label="Eliminar ${esc(p.name)}">🗑️</button>
       </div>
     </div>`).join('');
 }
@@ -671,6 +715,7 @@ function showWelcome() {
   const el = document.getElementById('welcome');
   if (!el) return;
   el.hidden = false;
+  armarGuardia();   // Atrás debe cerrar la bienvenida, no salir de la app
   // Sin esto, el fondo sigue desplazándose bajo la bienvenida en iOS.
   document.body.style.overflow = 'hidden';
   el.scrollTop = 0;
@@ -797,8 +842,8 @@ function resetState() {
   q('mat-list').innerHTML = `
     <div class="mat-row">
       <input class="field-input mat-name" type="text" placeholder="ej: Aceite de coco" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)">
-      <input class="field-input mat-cost" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" oninput="calcMatTotal()" style="--step-accent:var(--coral-deep)" aria-label="Costo del material">
-      <button class="btn-rem" onclick="remMat(this)" aria-label="Quitar material">✕</button>
+      <input class="field-input mat-cost" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" data-input="calcMatTotal" style="--step-accent:var(--coral-deep)" aria-label="Costo del material">
+      <button class="btn-rem" data-action="remMat" aria-label="Quitar material">✕</button>
     </div>`;
 
   // Reset creativity
@@ -956,12 +1001,12 @@ function renderRateWizard() {
       <label class="rate-row-lbl" for="rg-${g.id}">${g.lbl}</label>
       <input class="rate-row-input" type="text" inputmode="numeric" id="rg-${g.id}" data-gasto="${g.id}"
              maxlength="10" autocomplete="off"
-             value="${d.gastos[g.id]}" oninput="rateRecalc()">
+             value="${d.gastos[g.id]}" data-input="rateRecalc">
     </div>`).join('');
 
   document.getElementById('rate-days').innerHTML = [1,2,3,4,5,6,7].map(n => `
     <button type="button" class="rate-day${n === d.days ? ' sel' : ''}" data-days="${n}"
-            onclick="setRateDays(${n})" aria-label="${n} día${n > 1 ? 's' : ''} por semana">${n}</button>`).join('');
+            data-action="setRateDays" aria-label="${n} día${n > 1 ? 's' : ''} por semana">${n}</button>`).join('');
 
   document.getElementById('rate-meta-directa').value = d.metaDirecta || '';
   document.getElementById('rate-hours-day').value    = d.hoursDay;
@@ -1231,7 +1276,7 @@ function renderFixedWizard() {
       <input class="rate-row-input" type="text" inputmode="numeric" id="fx-${grupo}-${g.id}"
              data-fixed="${grupo}" data-fid="${g.id}"
              maxlength="10" autocomplete="off"
-             value="${d[grupo][g.id]}" oninput="fixedRecalc()">
+             value="${d[grupo][g.id]}" data-input="fixedRecalc">
     </div>`;
 
   document.getElementById('fixed-home-rows').innerHTML = FIXED_HOGAR.map(g => fila(g, 'hogar')).join('');
@@ -1349,8 +1394,8 @@ function addMat() {
   row.className = 'mat-row';
   row.innerHTML = `
     <input class="field-input mat-name" type="text" placeholder="ej: Fragancia" maxlength="60" autocomplete="off" style="--step-accent:var(--coral-deep)">
-    <input class="field-input mat-cost" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" oninput="calcMatTotal()" style="--step-accent:var(--coral-deep)" aria-label="Costo del material">
-    <button class="btn-rem" onclick="remMat(this)" aria-label="Quitar material">✕</button>`;
+    <input class="field-input mat-cost" type="text" inputmode="numeric" placeholder="$" maxlength="10" autocomplete="off" data-input="calcMatTotal" style="--step-accent:var(--coral-deep)" aria-label="Costo del material">
+    <button class="btn-rem" data-action="remMat" aria-label="Quitar material">✕</button>`;
   list.appendChild(row);
   row.querySelector('input').focus();
 }
@@ -1592,14 +1637,14 @@ function showDetail(idOrEvent, id) {
     { val:'obra',     e:'🏆', lbl:'Autor' },
   ];
   const crGrid = crOpts.map(o => `
-    <div class="det-cr-opt${p.crLvl===o.val?' sel':''}" data-val="${o.val}" onclick="detSelCr(this,${realId})"
+    <div class="det-cr-opt${p.crLvl===o.val?' sel':''}" data-val="${o.val}" data-action="detSelCr" data-id="${realId}"
          role="button" tabindex="0" aria-pressed="${p.crLvl===o.val}">
       <div class="dco-emoji">${o.e}</div>
       <div class="dco-lbl">${o.lbl}</div>
     </div>`).join('');
 
   const marginBtns = MARGINS.map(m => `
-    <button class="m-btn${p.margin===m?' active':''}" data-m="${m}" onclick="detSetMargin(this,${realId})">${m}%<br><small>${m===30?'Básico':m===50?'Sugerido':m===80?'Autor':'Premium'}</small></button>`
+    <button class="m-btn${p.margin===m?' active':''}" data-m="${m}" data-action="detSetMargin" data-id="${realId}">${m}%<br><small>${m===30?'Básico':m===50?'Sugerido':m===80?'Autor':'Premium'}</small></button>`
   ).join('');
 
   // Todo lo editable del detalle vive en un borrador hasta que la creadora
@@ -1615,7 +1660,7 @@ function showDetail(idOrEvent, id) {
   document.getElementById('det-body').innerHTML = `
     <div class="detail-head">
       <div class="detail-emoji-wrap">
-        <button type="button" class="icon-picker-btn big" onclick="openIconPicker('det-emoji-btn')"
+        <button type="button" class="icon-picker-btn big" data-action="openIconPicker" data-btn="det-emoji-btn"
                 id="det-emoji-btn" title="Cambiar el icono">
           <span class="icon-picker-glyph${p.emoji ? '' : ' empty'}" id="det-emoji">${p.emoji ? esc(p.emoji) : '＋'}</span>
         </button>
@@ -1643,7 +1688,7 @@ function showDetail(idOrEvent, id) {
     </div>
 
     <!-- PUBLICAR -->
-    <button type="button" class="det-publish" onclick="openStudio('historia',${realId})">
+    <button type="button" class="det-publish" data-action="openStudio" data-id="${realId}">
       <span class="dp-ico">📸</span>
       <span class="dp-text">
         <span class="dp-title">Publicar este producto</span>
@@ -1672,15 +1717,15 @@ function showDetail(idOrEvent, id) {
 
       <div class="det-field-row">
         <label class="det-field-lbl" for="det-mat">🧺 Materiales</label>
-        <input class="det-field-input" type="text" inputmode="numeric" id="det-mat" value="${p.mat}" maxlength="10" autocomplete="off" oninput="detRecalc(${realId})">
+        <input class="det-field-input" type="text" inputmode="numeric" id="det-mat" value="${p.mat}" maxlength="10" autocomplete="off" data-input="detRecalc" data-id="${realId}">
       </div>
       <div class="det-field-row">
         <label class="det-field-lbl" for="det-labor">⏰ Tu tiempo</label>
-        <input class="det-field-input" type="text" inputmode="numeric" id="det-labor" value="${p.labor}" maxlength="10" autocomplete="off" oninput="detRecalc(${realId})">
+        <input class="det-field-input" type="text" inputmode="numeric" id="det-labor" value="${p.labor}" maxlength="10" autocomplete="off" data-input="detRecalc" data-id="${realId}">
       </div>
       <div class="det-field-row">
         <label class="det-field-lbl" for="det-struct">🏠 Costos fijos</label>
-        <input class="det-field-input" type="text" inputmode="numeric" id="det-struct" value="${p.struct}" maxlength="10" autocomplete="off" oninput="detRecalc(${realId})">
+        <input class="det-field-input" type="text" inputmode="numeric" id="det-struct" value="${p.struct}" maxlength="10" autocomplete="off" data-input="detRecalc" data-id="${realId}">
       </div>
 
       <div class="field-label" style="margin-top:18px; margin-bottom:10px">🎨 Carga creativa</div>
@@ -1689,12 +1734,12 @@ function showDetail(idOrEvent, id) {
 
     <!-- GUARDAR + ACCIONES -->
     <div style="padding-bottom:16px">
-      <button class="btn-det-save" onclick="saveDetProduct(${realId})">Guardar cambios</button>
+      <button class="btn-det-save" data-action="saveDetProduct" data-id="${realId}">Guardar cambios</button>
       <div class="det-secondary-actions">
-        <button class="btn-det-secondary btn-whatsapp" onclick="shareWhatsApp(${realId})">${ICONS.whatsapp}<span>WhatsApp</span></button>
-        <button class="btn-det-secondary" onclick="duplicateProduct(${realId})">📋 Duplicar</button>
+        <button class="btn-det-secondary btn-whatsapp" data-action="shareWhatsApp" data-id="${realId}">${ICONS.whatsapp}<span>WhatsApp</span></button>
+        <button class="btn-det-secondary" data-action="duplicateProduct" data-id="${realId}">📋 Duplicar</button>
       </div>
-      <button class="btn-new-calc" onclick="showView('view-products')" style="width:100%">← Volver a mis productos</button>
+      <button class="btn-new-calc" data-action="showView" data-view="view-products" style="width:100%">← Volver a mis productos</button>
     </div>`;
 
   showView('view-detail');
@@ -1741,6 +1786,14 @@ function saveDetProduct(id) {
   if (_guardando) return;
   const idx = S.products.findIndex(p => p.id === id);
   if (idx < 0) return;
+  // Sin cambios no se recalcula ni se escribe nada: volver a derivar minP
+  // desde las partes ya redondeadas movía el precio ±$1-2 en cada guardado,
+  // y "guardar" algo idéntico no es guardar.
+  if (!detTieneCambios()) {
+    toast('✓ Sin cambios que guardar');
+    showView('view-products');
+    return;
+  }
   const p = S.products[idx];
   const mat    = parseMonto(document.getElementById('det-mat').value);
   const labor  = parseMonto(document.getElementById('det-labor').value);
@@ -2063,9 +2116,10 @@ document.addEventListener('click', e => {
   }
 });
 
-// Los "botones" que son <div onclick> (opciones de creatividad, acordeón de la
-// guía, tarjetas de producto) responden a Enter y Espacio como un botón de
-// verdad. Delegado, así cubre también los que se generan por innerHTML.
+// Los "botones" que son <div data-action> (opciones de creatividad, acordeón
+// de la guía, tarjetas de producto) responden a Enter y Espacio como un botón
+// de verdad: el click() sintético entra por la delegación normal. Delegado,
+// así cubre también los que se generan por innerHTML.
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
   const el = e.target;
@@ -2159,8 +2213,11 @@ function openIconPicker(btnId) {
     document.getElementById('icon-none').removeEventListener('click', onNone);
     overlay.removeEventListener('click', onBg);
     document.removeEventListener('keydown', onKey);
+    _modalAbierto = null;
     if (invocador && document.contains(invocador)) invocador.focus();
   };
+  _modalAbierto = cerrar;
+  armarGuardia();
   const aplicar = (emoji) => { setProductIcon(emoji); cerrar(); };
   const onPick = (ev) => {
     const b = ev.target.closest('.icon-opt');
@@ -2244,6 +2301,11 @@ function toast(msg) {
 // Diálogo modal de confirmación. Devuelve Promise<boolean>.
 // Sólo permite UN diálogo a la vez; si ya hay uno abierto, devuelve false.
 let _confirmBusy = false;
+
+// El cierre del modal visible, para que el botón Atrás pueda cancelarlo.
+// Cada modal lo registra al abrirse y lo limpia al cerrarse; solo puede haber
+// uno a la vez (los tres son overlays de pantalla completa).
+let _modalAbierto = null;
 function confirmDialog({ icon = '⚠️', title = '¿Confirmar?', message = '', confirmText = 'Aceptar', cancelText = 'Cancelar', dangerous = true } = {}) {
   return new Promise(resolve => {
     if (_confirmBusy) { resolve(false); return; }
@@ -2273,11 +2335,14 @@ function confirmDialog({ icon = '⚠️', title = '¿Confirmar?', message = '', 
         overlay.removeEventListener('click', onBgClick);
         document.removeEventListener('keydown', onKey);
         _confirmBusy = false;
+        _modalAbierto = null;
         if (invocador && typeof invocador.focus === 'function' && document.contains(invocador)) {
           invocador.focus();
         }
         resolve(val);
       };
+      _modalAbierto = () => cleanup(false);
+      armarGuardia();
       const onOk = () => cleanup(true);
       const onNo = () => cleanup(false);
       const onBgClick = (e) => { if (e.target === overlay) cleanup(false); };
@@ -2360,6 +2425,152 @@ if ('serviceWorker' in navigator) {
 // BUILD-PORTABLE-STRIP-END
 
 // ===================================================
+// BOTÓN ATRÁS (Android / navegador)
+// ===================================================
+// Patrón de "entrada guardián": no se modela el historial completo — se
+// mantiene UNA entrada extra en history y cada popstate (1) se re-arma y
+// (2) despacha la misma acción de retroceso que harían el ← o Escape en el
+// estado visible. Así las confirmaciones asíncronas funcionan sin pelear con
+// history (el guardián ya está re-armado antes de preguntar), y los flujos
+// que navegan a otra vista (applyRate → origen, guardados con setTimeout)
+// no necesitan saber nada del historial.
+//
+// En Inicio sin nada abierto la acción es null: no se re-arma y el siguiente
+// Atrás sale de la app, que es lo esperable en una PWA.
+let _guardia = false;
+
+function armarGuardia() {
+  if (_guardia) return;
+  // try/catch: en algún navegador sobre file:// pushState puede lanzar; el
+  // botón Atrás es una mejora, nunca un motivo de crash.
+  try { history.pushState({ pc: 1 }, ''); _guardia = true; } catch (e) {}
+}
+
+// La acción que ejecutaría "volver atrás" ahora mismo, o null si no hay nada
+// que cerrar. El orden es el de las capas visuales: modal → bienvenida →
+// sheet → pestaña.
+function accionAtras() {
+  if (_modalAbierto) return _modalAbierto;
+
+  const welcome = document.getElementById('welcome');
+  if (welcome && !welcome.hidden) return dismissWelcome;
+
+  const RUTAS = {
+    'view-calc':        navBack,                                // paso a paso
+    'view-results':     () => showView('view-calc'),
+    'view-detail':      () => showView('view-products'),
+    'view-backup':      closeBackup,
+    'view-help':        closeHelp,
+    'view-rate':        closeRateWizard,
+    'view-fixed':       closeFixedWizard,
+    'view-studio-pick': () => showView('view-studio-hub'),
+    'view-studio-edit': () => { if (typeof closeStudio === 'function') closeStudio(); }
+  };
+  const activa = vistaActiva();
+  if (RUTAS[activa]) return RUTAS[activa];
+  if (activa !== 'view-home') return () => showView('view-home');
+  return null;
+}
+
+function initAtras() {
+  try { history.replaceState({ pc: 0 }, ''); } catch (e) { return; }
+  armarGuardia();
+  window.addEventListener('popstate', () => {
+    _guardia = false;
+    const accion = accionAtras();
+    if (!accion) return;
+    armarGuardia();
+    accion();
+  });
+}
+
+// ===================================================
+// REGISTRO DE ACCIONES (núcleo)
+// ===================================================
+// Los argumentos viajan en data-attributes; los controles que ya llevaban
+// data-m / data-val / data-share / etc. se leen dentro de su propia función,
+// así que su wrapper solo pasa el elemento.
+Object.assign(ACCIONES, {
+  // Navegación general
+  goHome:      () => goHome(),
+  showView:    el => showView(el.dataset.view),
+  navBack:     () => navBack(),
+  goStep:      el => goStep(Number(el.dataset.step)),
+  openBackup:  () => openBackup(),
+  closeBackup: () => closeBackup(),
+  openHelp:    el => openHelp(el.dataset.section || undefined),
+  closeHelp:   () => closeHelp(),
+  toggleHelp:  el => toggleHelp(el.closest('.help-section')),
+  toggleTip:   el => toggleTip(el.dataset.tip),
+  // Reenvía el click a otro elemento (los <input type="file"> ocultos).
+  clickTarget: el => {
+    const t = document.getElementById(el.dataset.target);
+    if (t) t.click();
+  },
+
+  // Bienvenida e instalación
+  dismissWelcome:       () => dismissWelcome(),
+  welcomeExample:       () => welcomeExample(),
+  showWelcome:          () => showWelcome(),
+  startCalcWithExample: () => startCalcWithExample(),
+  handleInstallClick:   () => handleInstallClick(),
+  hideInstallGuide:     () => hideInstallGuide(),
+
+  // Calculadora y resultados
+  startCalc:          () => startCalc(),
+  addMat:             () => addMat(),
+  remMat:             el => remMat(el),
+  selCr:              el => selCr(el),
+  showResults:        () => showResults(),
+  setMargin:          el => setMargin(el),
+  saveProduct:        () => saveProduct(),
+  publishFromResults: () => publishFromResults(),
+  openIconPicker:     el => openIconPicker(el.dataset.btn),
+
+  // Productos y detalle
+  showDetail:       el => showDetail(Number(el.dataset.id)),
+  delProduct:       (el, ev) => delProduct(ev, Number(el.dataset.id)),
+  openStudio:       el => openStudio(el.dataset.format || 'historia', Number(el.dataset.id)),
+  duplicateProduct: el => duplicateProduct(Number(el.dataset.id)),
+  shareWhatsApp:    el => shareWhatsApp(Number(el.dataset.id)),
+  saveDetProduct:   el => saveDetProduct(Number(el.dataset.id)),
+  detSelCr:         el => detSelCr(el, Number(el.dataset.id)),
+  detSetMargin:     el => detSetMargin(el, Number(el.dataset.id)),
+  clearSearch:      () => clearSearch(),
+
+  // Asistentes
+  openRateWizard:   el => openRateWizard(el.dataset.from),
+  closeRateWizard:  () => closeRateWizard(),
+  applyRate:        () => applyRate(),
+  setRateMode:      el => setRateMode(el.dataset.mode),
+  setRateShare:     el => setRateShare(Number(el.dataset.share)),
+  setRateFocus:     el => setRateFocus(Number(el.dataset.focus)),
+  setRateDays:      el => setRateDays(Number(el.dataset.days)),
+  openFixedWizard:  el => openFixedWizard(el.dataset.from),
+  closeFixedWizard: () => closeFixedWizard(),
+  applyFixed:       () => applyFixed(),
+  setFixedShare:    el => setFixedShare(Number(el.dataset.fshare)),
+
+  // Respaldo
+  exportData: () => exportData()
+});
+
+Object.assign(ENTRADAS, {
+  filterProducts:     el => filterProducts(el.value),
+  onNameInput:        () => onNameInput(),
+  calcMatTotal:       () => calcMatTotal(),
+  updateLaborPreview: () => updateLaborPreview(),
+  rateRecalc:         () => rateRecalc(),
+  fixedRecalc:        () => fixedRecalc(),
+  detRecalc:          el => detRecalc(Number(el.dataset.id))
+});
+
+Object.assign(CAMBIOS, {
+  rateRecalc: () => rateRecalc(),
+  importData: el => importData(el)
+});
+
+// ===================================================
 // ARRANQUE
 // ===================================================
 // Al final a propósito: todo lo declarado con let/const ya está evaluado y
@@ -2368,6 +2579,9 @@ if ('serviceWorker' in navigator) {
   S.products = loadProducts();
   S.rate     = loadRate();
   S.fixed    = loadFixed();
+  // Antes que la bienvenida: showWelcome() arma la entrada guardián y el
+  // replaceState de initAtras() debe correr sobre la entrada original.
+  initAtras();
   renderHome();
   renderProducts();
   initWelcome();

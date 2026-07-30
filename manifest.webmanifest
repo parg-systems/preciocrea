@@ -37,5 +37,21 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "./assets/screenshots/inicio.png",
+      "sizes": "390x900",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Pantalla de inicio: calcula el precio justo de tus creaciones"
+    },
+    {
+      "src": "./assets/screenshots/resultados.png",
+      "sizes": "390x900",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Resultados: precio mínimo, precio ideal y de qué está hecho"
+    }
   ]
 }
