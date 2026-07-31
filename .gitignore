@@ -23,3 +23,6 @@ preciocrea-portable.html
 
 # Copias versionadas del portable para repartir
 dist/
+
+# Dependencias de desarrollo (solo para los tests; la app no usa ninguna)
+node_modules/

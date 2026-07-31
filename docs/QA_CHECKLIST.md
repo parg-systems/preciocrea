@@ -2,6 +2,15 @@
 
 Pasar todos los escenarios antes de publicar una versión nueva.
 
+> **Antes de empezar, correr la tanda automática:** `node --test tests/`.
+> No necesita instalar nada. Cubre los precios, el parseo de montos y horas,
+> los saneadores de datos importados, el contraste de las publicaciones, el
+> contrato de `data-action` y la coherencia entre `sw.js`, `index.html`,
+> `CHANGELOG.md` y este archivo. Las secciones de abajo marcadas con ✅ ya no
+> hace falta repasarlas a mano: si algo se rompió, la tanda lo dice en un
+> segundo. Lo que queda sin marcar es justamente lo que solo se puede
+> comprobar con el teléfono en la mano.
+
 > **Antes que nada: subir `BUILD` en `sw.js`.** En cada entrega que toque HTML,
 > CSS o JS, aunque `VERSION` no cambie. Si no, el service worker sigue sirviendo
 > los archivos viejos, no aparece el banner de actualización, y estarás probando
@@ -69,6 +78,12 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 - [ ] Importar un archivo > 1 MB: toast "Archivo demasiado grande".
 
 ## Robustez de datos
+
+✅ *Parcialmente cubierto por `tests/sanitizadores.test.js`*: el almacenamiento
+corrupto, el bloqueado y los `id` repetidos se prueban ahí sobre las mismas
+funciones. Lo de abajo sigue haciéndose a mano porque prueba lo que la creadora
+**ve** cuando eso ocurre (el toast, el home dibujado entero), no solo que el
+dato se sanea.
 
 - [ ] En **Safari modo privado** (iOS): crear un producto. Al fallar `localStorage.setItem`, aparece un toast claro indicando que no se pudo guardar.
 - [ ] Llenar localStorage manualmente hasta el tope (DevTools → Application → localStorage → llenar con strings grandes) e intentar guardar: el toast indica "Sin espacio para guardar".
@@ -219,7 +234,7 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 
 - [ ] Pie de la pestaña Calcular: "Creada con amor por **viviLoaiza.cl**…", **"Queda prohibida su venta o distribución comercial."**, el distintivo **© viviLoaiza.cl** y el aviso de marcas registradas (Spotify, WhatsApp, Android, Apple). Los cuatro deben estar.
 - [ ] Vista de Ayuda: al final aparece el bloque "Sobre la creadora" con los dos enlaces (sitio + Instagram), ambos abren en pestaña nueva.
-- [ ] Justo debajo, la línea de versión dice **«Versión 2.2.0 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**.
+- [ ] Justo debajo, la línea de versión dice **«Versión 2.3.0 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**. — ✅ *la coincidencia la verifica `tests/repo.test.js`; a ojo solo queda comprobar que la línea se ve*
 - [ ] IVA siempre activado: en la lista de productos, detalle, resultados y WhatsApp se ve el precio con IVA sin opción de ocultarlo.
 
 ## PWA
@@ -256,11 +271,17 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 
 ## Seguridad
 
+✅ *Parcialmente cubierto*: `esc()` y sus vectores en `tests/seguridad.test.js`;
+la CSP sin `unsafe-inline`, la ausencia de `onclick=`/`style=` y de orígenes
+externos en `index.html`, en `tests/repo.test.js`. El `grep` manual de más
+abajo ya no hace falta. Lo que sigue siendo manual es el recorrido con la
+consola abierta: solo ahí se ve un `Refused to execute` en tiempo de ejecución.
+
 - [ ] Crear un producto con nombre `<script>alert(1)</script>`: se muestra como texto, no ejecuta JS.
 - [ ] Importar un JSON donde `name` sea `<img src=x onerror=alert(1)>`: tampoco ejecuta.
 - [ ] Importar un JSON donde `emoji` sea `<s`: se muestra como texto en la lista y en el detalle.
 - [ ] **La CSP no contiene ningún `unsafe-inline`** (`script-src 'self'` y `style-src 'self'`) y en DevTools → Console no aparece ningún `Refused to execute`/`Refused to apply` durante el recorrido completo (calcular, guardar, editar, eliminar, importar, asistentes, marca, Estudio, tips, acordeón, modales).
-- [ ] `grep` de `onclick=`/`oninput=`/`onchange=`/`style="` en `index.html` y `js/`: **cero resultados** (eventos por `data-action`/`data-input`/`data-change`; estilos por clases o CSSOM).
+- [x] `grep` de `onclick=`/`oninput=`/`onchange=`/`style="` en `index.html` y `js/`: **cero resultados** (eventos por `data-action`/`data-input`/`data-change`; estilos por clases o CSSOM). — ✅ *automatizado en `tests/repo.test.js`, junto con la verificación de que cada `data-action` tiene manejador (`tests/delegacion.test.js`)*
 - [ ] Los 8 swatches de color de «Tu marca» y del editor se ven pintados (los pinta JS por CSSOM), y las barras del desglose de resultados tienen su degradado.
 - [ ] **Cero tráfico a terceros.** En la pestaña Network, tras un uso completo (calcular, guardar, publicar), **ninguna petición sale del propio dominio**. Ya no hay Google Fonts.
 - [ ] En la pestaña Network filtrando por `Font`: las tres tipografías se sirven desde `/assets/fonts/`.
@@ -281,6 +302,10 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 
 ## Continuidad con la 1.6.0
 
-- [ ] **Los precios no cambiaron.** Calcular un producto con datos conocidos (materiales 2.170 · 2,5 h × $8.000 · creatividad moderada · $80.000 / 30 unidades) da mínimo **$28.162** y ideal al 50% **$42.243** — igual que en la 1.6.0.
+✅ **Cubierto por `tests/precio.test.js`.** Este era el caso que había que
+recordar calcular a mano en cada entrega; ahora corre solo, junto con el
+desglose componente a componente y los cuatro niveles de creatividad.
+
+- [x] **Los precios no cambiaron.** Calcular un producto con datos conocidos (materiales 2.170 · 2,5 h × $8.000 · creatividad moderada · $80.000 / 30 unidades) da mínimo **$28.162** y ideal al 50% **$42.243** — igual que en la 1.6.0.
 - [ ] Un respaldo `.json` exportado con la 1.6.0 se importa sin pérdidas: productos, marca y logo.
 - [ ] Las imágenes que genera el Estudio son **idénticas** a las de la 1.6.0 (mismo estilo, mismo color, mismos 1080×1920): el motor de Canvas no se tocó.

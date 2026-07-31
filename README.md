@@ -115,6 +115,29 @@ Como el build le quita el service worker y el manifest, el navegador nunca lo co
 
 El script aborta con error si alguna sustitución no encuentra su patrón en `index.html`: un portable con una referencia externa sin inlinear se ve bien al generarlo y falla en el teléfono de la clienta, así que conviene enterarse al construirlo.
 
+## Tests
+
+```bash
+npm install          # solo la primera vez: instala jsdom (dependencia de desarrollo)
+node --test tests/   # la tanda entera, unos 4 segundos
+```
+
+373 pruebas que corren sobre el código tal como está en disco. Cubren la
+fórmula del precio (con la regresión de la 1.6.0 escrita como test), el parseo
+de montos y horas en español de Chile, los saneadores de todo lo que entra
+desde `localStorage` o un respaldo, el mensaje de WhatsApp, el contraste AA de
+las publicaciones, los dos asistentes —valor hora y costos fijos— con el HTML
+real, la importación de punta a punta, y que cada `data-action` tenga
+manejador. `tests/README.md` explica qué protege cada archivo y qué queda
+fuera a propósito.
+
+**La app sigue sin dependencias.** La única, `jsdom`, es de desarrollo: no está
+en la lista `ASSETS` de `sw.js`, no la mira `build-portable.js` y no viaja ni
+en el sitio publicado ni en el portable. Clonar y abrir `index.html` sigue sin
+instalar nada; el `npm install` solo hace falta para correr los tests.
+
+**Trabajar en `tests/` no obliga a subir `BUILD`**: esa carpeta no se despacha.
+
 ## Estructura del proyecto
 
 ```
@@ -154,6 +177,14 @@ preciocrea/
 │       └── propuesta_de_valor.docx
 ├── docs/
 │   └── QA_CHECKLIST.md           ← Pruebas manuales pre-release
+├── tests/                        ← Tanda automática: node --test tests/
+│   ├── README.md                 ← Qué cubre cada archivo y qué no cubre
+│   ├── helpers/                  ← Los dos arneses: node:vm y jsdom
+│   └── *.test.js                 ← Precio, entrada, saneo, color, CSP, asistentes…
+├── scripts/
+│   └── build-portable.js         ← Genera el HTML de archivo único
+├── package.json                  ← Solo para los tests (jsdom). La app no lo usa
+├── node_modules/                 ← ⨯ no versionado: dependencias de desarrollo
 ├── slides/
 │   ├── guia_operativa/           ← Diapositivas PNG de la guía
 │   └── lanzamiento_emocional/    ← Diapositivas PNG del lanzamiento
@@ -162,9 +193,9 @@ preciocrea/
 ```
 
 Lo marcado con ⨯ está en `.gitignore` y **no aparece al clonar**: `dist/`,
-`_archivo/`, `.claude/` y el `preciocrea-portable.html` de la raíz son artefactos
-locales. `dist/` y el portable se regeneran; `_archivo/` es histórico de esta
-máquina.
+`_archivo/`, `.claude/`, `node_modules/` y el `preciocrea-portable.html` de la
+raíz son artefactos locales. `dist/`, el portable y `node_modules/` se
+regeneran; `_archivo/` es histórico de esta máquina.
 
 ## Tecnologías
 
@@ -185,6 +216,12 @@ variables (un archivo cubre todos los pesos): 96 KB frente a los 285 KB que
 pesarían los pesos por separado.
 
 ### Al publicar
+
+**Primero, la tanda automática: `node --test tests/`** (ver [Tests](#tests)).
+Entre otras cosas verifica sola la coherencia de versión entre `sw.js`,
+`index.html`, `CHANGELOG.md`, el checklist y `package.json` — que es justo lo
+que se había desincronizado antes. Recién después va `docs/QA_CHECKLIST.md`,
+que es lo que solo se puede comprobar con el teléfono en la mano.
 
 **Subir `BUILD` en `sw.js` en cada entrega**, aunque `VERSION` no se mueva. Son
 cosas distintas: `VERSION` es lo que se le muestra a la creadora, `BUILD` es la

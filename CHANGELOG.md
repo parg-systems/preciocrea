@@ -53,10 +53,43 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
   el cambio no llega nunca. Ahora dice «cualquier archivo de `ASSETS`», en el
   README, en la cabecera de `sw.js` y en el checklist.
 
+#### Documentación y herramientas
+
+- **La app estrena tanda de tests: 373 pruebas en `tests/`.** Se añaden después
+  de publicar la 2.3.0 y **no cambian una sola línea de lo que se despacha** —
+  `index.html`, `js/`, `css/`, `sw.js` y el manifest quedan byte a byte iguales,
+  y por eso esto no es una versión nueva sino un apartado dentro de esta.
+  Cubren la fórmula del precio (con la regresión de la 1.6.0 escrita como test:
+  $28.162 y $42.243, el caso que había que recordar calcular a mano), el parseo
+  de montos y horas en español de Chile, los saneadores de todo lo que entra
+  desde `localStorage` o un respaldo, el mensaje de WhatsApp, las miniaturas, el
+  respaldo exportado, el contraste AA de las publicaciones, los dos asistentes
+  con el HTML real, la importación de punta a punta y que cada `data-action`
+  tenga manejador —un nombre mal escrito no da error, da un botón muerto—.
+- **La coherencia de versión ahora se verifica sola.** Entre `sw.js`,
+  `index.html`, este archivo, el checklist y `package.json`. La primera corrida
+  encontró la deriva que lo justificaba: el checklist seguía pidiendo «Versión
+  2.2.0» con la app en 2.3.0.
+- **`docs/QA_CHECKLIST.md` encoge.** Los escenarios que la tanda ya cubre quedan
+  marcados; lo que sigue sin marcar es lo que solo se comprueba con el teléfono
+  en la mano: legibilidad al sol, instalación de la PWA, Web Share, iOS.
+- **Una dependencia, y solo para el taller.** `jsdom` entra como `devDependency`
+  en un `package.json` nuevo; es lo que permite probar los dos asistentes, que
+  leen y escriben el DOM directamente. No está en `ASSETS`, no lo mira
+  `build-portable.js` y no viaja en el sitio ni en el portable: quien clone el
+  repo y abra `index.html` sigue sin instalar nada.
+- **Hallazgo pendiente:** el role `eyebrow` —la palabra «Catálogo» de las dos
+  portadas de carrusel— está declarado en las plantillas y en la lámina, pero
+  `studioSlotText` no lo contempla y nunca se dibuja. Queda documentado en
+  `tests/estudio.test.js` en vez de corregido: el arreglo cambia las imágenes
+  que la app genera hoy y pide su propio release con QA visual.
+
 ### Notas
 
 - `BUILD` 9 → **11**. El 10 salió en el despliegue del `noindex` permanente y no
-  llegó a documentarse aquí.
+  llegó a documentarse aquí. La tanda de tests **no** movió `BUILD`: `tests/` y
+  `package.json` no están en `ASSETS`, así que no hay nada que revalidar en el
+  caché de nadie.
 - **Las capturas no se precachean**, a propósito. Suman ~871 KB y el navegador
   solo las pide al mostrar la ficha de instalación, que ocurre en línea:
   precachearlas costaría esa descarga a cada clienta en la primera carga y en
