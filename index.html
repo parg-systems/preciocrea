@@ -16,6 +16,26 @@
      styles.css y lo dinámico se asigna por CSSOM desde JS. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'">
 <meta name="description" content="PrecioCrea: calcula el precio justo de tus creaciones hechas a mano y publícalas con tu marca. Gratis, sin registro y tus datos nunca salen de tu teléfono.">
+<!-- Open Graph: la tarjeta que arman WhatsApp, Instagram y Facebook al compartir
+     el enlace — que es exactamente como se reparte la app, así que esto no es
+     adorno. OJO: og:url y og:image exigen URL ABSOLUTA por especificación. Son
+     las únicas rutas absolutas del proyecto, que en todo lo demás es agnóstico
+     de dominio (start_url "./", scope "./", register('./sw.js')); gracias a eso
+     la mudanza de cuenta no costó una línea de código. Si el dominio vuelve a
+     cambiar, estas dos líneas hay que tocarlas a mano. Y por eso mismo
+     build-portable.js las quita: el portable es un archivo suelto que llega por
+     WhatsApp, sin URL que describir y sin red a la que apuntar. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PrecioCrea">
+<meta property="og:locale" content="es_CL">
+<meta property="og:title" content="PrecioCrea ✨">
+<meta property="og:description" content="Calcula el precio justo de tus creaciones hechas a mano y publícalas con tu marca. Gratis, sin registro y tus datos nunca salen de tu teléfono.">
+<meta property="og:url" content="https://preciocrea.parg.cl/">
+<meta property="og:image" content="https://preciocrea.parg.cl/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="PrecioCrea — calcula el precio justo de tus creaciones hechas a mano">
+<meta name="twitter:card" content="summary_large_image">
 <!-- La app se reparte SOLO desde la página de Vivi: no debe aparecer nunca en
      buscadores. Esta etiqueta es lo que de verdad la saca del índice. Ojo:
      robots.txt permite el rastreo a propósito, porque el buscador tiene que
@@ -1383,7 +1403,7 @@
       </div>
 
       <div class="help-version">
-        Versión 2.2.0 · creada para <a href="https://viviloaiza.cl" target="_blank" rel="noopener noreferrer">viviloaiza.cl</a> por parg
+        Versión 2.3.0 · creada para <a href="https://viviloaiza.cl" target="_blank" rel="noopener noreferrer">viviloaiza.cl</a> por parg
       </div>
 
     </div>

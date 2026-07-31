@@ -1,7 +1,8 @@
 // PrecioCrea Service Worker
 //
 // VERSION es la versión que se muestra a la creadora. BUILD es el número de
-// entrega: sube en CADA cambio de HTML/CSS/JS, aunque la versión no se mueva.
+// entrega: sube en CADA cambio de un archivo de ASSETS, aunque la versión no se
+// mueva.
 //
 // Los dos existen porque son cosas distintas y confundirlas cuesta caro. El
 // nombre del caché es la llave: si no cambia, el service worker sigue sirviendo
@@ -11,9 +12,13 @@
 // añadir el asistente de valor hora dentro de la misma versión 2.0.0: el código
 // estaba publicado y nadie lo veía.
 //
-// Regla: si tocas index.html, css/ o js/, sube BUILD. Siempre.
-const VERSION = '2.2.0';
-const BUILD   = 10;
+// Regla: si cambia CUALQUIER archivo de la lista ASSETS de abajo, sube BUILD.
+// Siempre. Ojo con manifest.webmanifest, que está en esa lista y es fácil de
+// olvidar porque no es "HTML/CSS/JS": se sirve cache-first como todo lo demás,
+// así que corregirlo sin subir BUILD deja sw.js byte a byte idéntico y el
+// cambio no llega nunca — ni hay forma de arreglarlo desde el teléfono.
+const VERSION = '2.3.0';
+const BUILD   = 11;
 const CACHE = `preciocrea-${VERSION}-b${BUILD}`;
 const ASSETS = [
   './',

@@ -210,6 +210,7 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 - [ ] Abrir `index.html` con doble clic: se puede crear y descargar una historia, sin errores en consola.
 - [ ] `node scripts/build-portable.js` termina sin error. Si falla, **no publicar**: significa que algo no se inlineó.
 - [ ] Buscar `<script src="js/` dentro de `preciocrea-portable.html`: **cero resultados**.
+- [ ] Buscar `og:`, `twitter:`, `name="robots"` y `preciocrea.parg.cl` en el portable: **cero resultados**. Las metas Open Graph describen una URL pública y llevan el dominio dentro; el portable es un archivo suelto sin URL que describir, y sería su única referencia a la red.
 - [ ] La meta CSP del **portable** dice `script-src 'self' 'unsafe-inline'` **y** `style-src 'self' 'unsafe-inline'` (su JS y su CSS viajan inline; sin eso abre en blanco o sin paleta). La de `index.html` NO lleva `unsafe-inline` en ninguna directiva.
 - [ ] Buscar `function fmt(n)` en el portable: la línea siguiente debe ser `return '$' + Math.round(n)…`, sin HTML incrustado.
 - [ ] Abrir el portable con doble clic y descargar una historia con foto.
@@ -234,7 +235,14 @@ Pasar todos los escenarios antes de publicar una versión nueva.
 - [ ] **El icono instalado se ve nítido y sin recortes** en el cajón de apps de Android (el sistema aplica su máscara sobre el icono *maskable*), y la pantalla de bienvenida al abrir no sale borrosa.
 - [ ] **Modo avión con la app instalada:** la tipografía de marca se ve **igual que en línea** (Fraunces y Nunito, no la fuente del sistema).
 - [ ] **Sin caché y sin red:** en DevTools → Application → Storage → *Clear site data*, activar Offline y recargar: aparece la pantalla "Sin conexión", no el error del navegador.
-- [ ] **El servidor no congela la app.** Comprobar en Network que `sw.js`, `index.html` y `manifest.webmanifest` se sirven con `Cache-Control: no-cache`. Sin eso, una corrección publicada no llega a quien ya tenía la app abierta.
+- [ ] **Una corrección publicada llega.** GitHub Pages sirve todo con `max-age=600` y no permite configurar cabeceras, así que lo que hay que comprobar no es una cabecera sino el mecanismo: con la app ya instalada, publicar una entrega con `BUILD` nuevo y confirmar que aparece el banner de «nueva versión» en la siguiente apertura. Si el `sw.js` servido muestra un `max-age` mucho mayor a 600, alguien puso un proxy delante — ver README → «Qué hace que una corrección llegue».
+
+## Compartir el enlace y ficha de instalación
+
+- [ ] **La tarjeta al compartir.** Mandarse `https://preciocrea.parg.cl/?v=1` por WhatsApp: aparece tarjeta con imagen, título «PrecioCrea ✨» y descripción. **Probar siempre con `?v=N`, nunca con la URL limpia:** la caché de vista previa es por URL y pegajosa, así que un intento fallido dejaría la URL real mostrando una tarjeta rota. Solo cuando se vea bien, compartir la canónica.
+- [ ] **El rastreador entra.** `curl -A "facebookexternalhit/1.1" https://preciocrea.parg.cl/` devuelve el HTML con las `og:`. Si sale vacío o devuelve un desafío antibot, la vista previa está muerta aunque las metas sean perfectas.
+- [ ] **La imagen carga.** `assets/og-image.png` responde 200, es 1200×630 y pesa menos de 300 KB (por encima, WhatsApp la descarta).
+- [ ] **Ficha de instalación en escritorio.** Chrome de escritorio → icono de instalar: la ficha muestra la captura `wide`. En Application → Manifest no hay advertencias y los `sizes` declarados coinciden con los píxeles reales.
 
 ## Botón Atrás (Android / navegador)
 

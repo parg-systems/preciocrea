@@ -52,6 +52,13 @@
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Resultados: precio mínimo, precio ideal y de qué está hecho"
+    },
+    {
+      "src": "./assets/screenshots/escritorio.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "PrecioCrea en el escritorio: del cálculo al precio publicado"
     }
   ]
 }

@@ -8,6 +8,64 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 
 ---
 
+## [2.3.0] — 2026-07-30 · el enlace se comparte con cara, y con casa propia
+
+### Añadido
+
+- **Vista previa al compartir.** El enlace mandado por WhatsApp, Instagram o
+  Facebook ya no llega como una URL pelada: arma una tarjeta con imagen, título
+  y descripción. Etiquetas Open Graph y `twitter:card` en `index.html`, más
+  `assets/og-image.png` (1200×630, 72 KB) compuesta con la paleta de marca.
+  Importa más de lo que parece: el reparto de la app es de mano en mano, así que
+  esa tarjeta es su carátula.
+- **Ficha de instalación en escritorio.** Captura `assets/screenshots/escritorio.png`
+  con `form_factor: "wide"` en el manifest. Es una composición de las dos
+  capturas reales lado a lado: `.app` está limitado a 480 px y centrado, así que
+  una captura literal a 1280 de ancho habría sido una columna estrecha rodeada
+  de vacío.
+
+### Cambiado
+
+- **El sitio se mudó de casa.** De `pityandil.github.io/preciocrea/` a
+  **`preciocrea.parg.cl`**, con dominio propio en la cuenta `parg-systems`. El
+  archivo `CNAME` fija el dominio y el DNS vive en Cloudflare, en modo «solo
+  DNS». Como la app nunca tuvo una ruta absoluta (`start_url` y `scope` en
+  `"./"`, `register('./sw.js')`), la mudanza no costó una sola línea de código —
+  las `og:` de esta versión son, por especificación, las primeras rutas
+  absolutas del proyecto.
+- **Se corrige lo que se decía sobre `Cache-Control`.** Las notas de versiones
+  anteriores pedían servir `sw.js`, `index.html` y el manifest con `no-cache`
+  «configurándolo en el panel del proveedor». Eso nunca fue posible aquí: GitHub
+  Pages sirve todo con `max-age=600` y no permite tocar cabeceras. Lo que de
+  verdad hace llegar una corrección es el bump de `BUILD`, que renombra el caché,
+  más el network-first para navegaciones de la 1.6.0. Se evaluó poner un proxy
+  delante para forzar la cabecera y **se descartó**: la ganancia no justificaba
+  la complejidad, y el proxy empeora el caso por defecto (su *Browser Cache TTL*
+  gratuito es de 4 h sobre `.js` y `.css`, así que `sw.js` pasaría de 600 s a
+  14400 s). El README documenta el detalle por si alguien lo retoma.
+- **El portable ya no arrastra las `og:` ni el `noindex`.** `build-portable.js`
+  las quita junto con sus comentarios, y estrena guards que abortan el build si
+  sobreviven: los guards viejos buscaban `href=`/`src=`, y las `og:` escriben su
+  URL en `content=`, así que no las habrían visto.
+- **La regla del bump estaba mal escrita.** Decía «si tocas index.html, css/ o
+  js/», pero `manifest.webmanifest` también está en `ASSETS` y también se sirve
+  cache-first: corregirlo sin subir `BUILD` deja `sw.js` byte a byte idéntico y
+  el cambio no llega nunca. Ahora dice «cualquier archivo de `ASSETS`», en el
+  README, en la cabecera de `sw.js` y en el checklist.
+
+### Notas
+
+- `BUILD` 9 → **11**. El 10 salió en el despliegue del `noindex` permanente y no
+  llegó a documentarse aquí.
+- **Las capturas no se precachean**, a propósito. Suman ~871 KB y el navegador
+  solo las pide al mostrar la ficha de instalación, que ocurre en línea:
+  precachearlas costaría esa descarga a cada clienta en la primera carga y en
+  cada entrega nueva, sin ningún beneficio sin conexión.
+- `assets/og-image.png` tampoco está en `ASSETS`: quien la pide es un rastreador
+  contra la red, no la app.
+- Se crearon los tags `v2.0.1`, `v2.1.0` y `v2.1.1`, que existían en este archivo
+  pero nunca en git, con la fecha de su commit original.
+
 ## [2.2.0] — 2026-07-30 · miniaturas de producto en la lista
 
 ### Añadido

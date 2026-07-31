@@ -97,7 +97,9 @@ Las plantillas viven en `STUDIO_TEMPLATES` (`js/studio.js`) como datos puros, co
 
 Abre `index.html` directamente en el navegador — no requiere servidor ni instalación.
 
-Para compartir o publicar: sube todo el proyecto a cualquier hosting estático (GitHub Pages, Netlify, etc.). Allí funciona como PWA instalable.
+El sitio publicado vive en **<https://preciocrea.parg.cl>**, donde funciona como
+PWA instalable. El despliegue no es una elección abierta de hosting: hay un solo
+camino y está descrito en [Al publicar](#al-publicar).
 
 ## Distribución portable (archivo único)
 
@@ -120,6 +122,8 @@ preciocrea/
 ├── index.html                    ← Aplicación principal
 ├── manifest.webmanifest          ← Manifest PWA
 ├── sw.js                         ← Service Worker (¡subir BUILD en cada cambio!)
+├── CNAME                         ← Dominio propio para GitHub Pages (no borrar)
+├── robots.txt                    ← Permite el rastreo a propósito (ver dentro)
 ├── css/
 │   └── styles.css                ← Todos los estilos
 ├── js/
@@ -135,6 +139,11 @@ preciocrea/
 │   │   ├── nunito-var.woff2
 │   │   ├── fraunces-var.woff2
 │   │   └── fraunces-var-italic.woff2
+│   ├── og-image.png              ← 1200×630, la tarjeta al compartir el enlace
+│   ├── screenshots/              ← Capturas del manifest (ficha de instalación)
+│   │   ├── inicio.png            ← 390×900, narrow
+│   │   ├── resultados.png        ← 390×900, narrow
+│   │   └── escritorio.png        ← 1280×720, wide
 │   ├── audio/
 │   │   ├── podcast_preciocrea.mp3
 │   │   └── Cobra lo que realmente vale tu trabajo.mp3
@@ -148,8 +157,14 @@ preciocrea/
 ├── slides/
 │   ├── guia_operativa/           ← Diapositivas PNG de la guía
 │   └── lanzamiento_emocional/    ← Diapositivas PNG del lanzamiento
-└── _archivo/                     ← Versiones anteriores (no publicar)
+├── dist/                         ← ⨯ no versionado: portables por versión
+└── _archivo/                     ← ⨯ no versionado: versiones anteriores
 ```
+
+Lo marcado con ⨯ está en `.gitignore` y **no aparece al clonar**: `dist/`,
+`_archivo/`, `.claude/` y el `preciocrea-portable.html` de la raíz son artefactos
+locales. `dist/` y el portable se regeneran; `_archivo/` es histórico de esta
+máquina.
 
 ## Tecnologías
 
@@ -178,11 +193,65 @@ archivos viejos para siempre y, como `sw.js` queda idéntico, el navegador ni
 siquiera detecta que hay algo nuevo: no aparece el banner de actualización y no
 hay forma de salir de ahí desde el teléfono.
 
-`sw.js`, `index.html` y `manifest.webmanifest` deben servirse con
-`Cache-Control: no-cache`; el resto puede ir con caché larga, porque el service
-worker lo invalida por versión. Sin esa cabecera el service worker queda
-congelado en el servidor y **una corrección publicada no llega a quien ya tiene
-la app abierta**.
+La regla exacta es: **sube `BUILD` si cambia cualquier archivo de la lista
+`ASSETS` de `sw.js`.** No es «HTML, CSS o JS» — `manifest.webmanifest` también
+está en esa lista y también se sirve cache-first, así que corregirlo sin subir
+`BUILD` cae en la misma trampa. Y si `VERSION` cambia, hay que tocar además el
+pie de la app en `index.html`, que lleva el número escrito a mano.
+
+### Cómo se despliega
+
+| Pieza | Dónde |
+|---|---|
+| Repositorio | `parg-systems/preciocrea`, rama `master` |
+| Hosting | GitHub Pages, despliegue clásico desde rama (`master` / raíz) |
+| Dominio | `preciocrea.parg.cl`, fijado por el archivo `CNAME` de la raíz |
+| DNS | Cloudflare (solo DNS, sin proxy): `CNAME preciocrea → parg-systems.github.io` |
+| Cabeceras | Las de GitHub Pages: `max-age=600`, no configurables |
+
+Publicar es `git push origin master`: no hay workflow ni paso de build. **No
+borrar el `CNAME`** — sin él Pages vuelve a la URL de `github.io`.
+
+El registro DNS va en **«DNS only»** (nube gris). El proxy de Cloudflare rompe el
+desafío HTTP con que GitHub emite el certificado, y con el SSL en *Flexible*
+produce un bucle de redirecciones.
+
+#### Qué hace que una corrección llegue
+
+GitHub Pages sirve todo con `Cache-Control: max-age=600` y **no permite
+configurar cabeceras**. No hay forma de pedirle `no-cache`, así que el mecanismo
+de invalidación es otro y vive en el propio código:
+
+1. **El bump de `BUILD`** renombra el caché del service worker, que borra el
+   anterior en su `activate`. Es la pieza principal.
+2. **Network-first para navegaciones**, desde la 1.6.0: la app pide el documento
+   a la red antes que al caché, así que una corrección publicada entra en la
+   siguiente apertura.
+
+Los 600 segundos acotan el peor caso a diez minutos sobre el propio `sw.js`, que
+es aceptable. Si alguna vez importara reducirlo, la única vía sería un proxy
+delante (Cloudflare naranja) con una regla de cabecera.
+
+> **Se evaluó y se descartó** (julio 2026): la ganancia no justificaba la
+> complejidad. Y encender el proxy **empeora las cosas por defecto** — el
+> *Browser Cache TTL* del plan gratuito es de 4 horas y se aplica a `.js` y
+> `.css`, así que `sw.js` pasó de 600 s a 14400 s con solo cambiar la nube a
+> naranja. Quien lo retome tiene que ajustar también ese TTL, apagar *Rocket
+> Loader* (inyecta un script en línea que la CSP `script-src 'self'` bloquea: la
+> app abre en blanco) y apagar *Bot Fight Mode* (desafía a `facebookexternalhit`
+> y mata la vista previa al compartir).
+
+### Mejoras pendientes
+
+**Atajos del manifest** (`shortcuts`): mantener pulsado el icono instalado y
+saltar directo a la calculadora o a Productos. Quedó fuera a propósito porque no
+es solo manifest — necesita leer un parámetro (`./?ir=calculadora`) al arrancar y
+despachar la acción, y eso toca la **entrada guardián del botón Atrás**, que es
+lo que costó el release 2.1.0 entero. El alcance está estudiado: parseo al final
+del init (nunca arriba, por la zona muerta temporal), ruta en el mapa `RUTAS` de
+`accionAtras()` para que el primer Atrás vuelva a Inicio y no salga de la app, e
+iconos de 96×96 por atajo o Android muestra uno genérico. Conviene hacerlo solo,
+en su propio release, con QA enfocado en Atrás.
 
 ## Color y legibilidad
 

@@ -104,6 +104,24 @@ out = out.replace(/<link\s+rel="apple-touch-icon"[^>]*>\s*\n?/g, '');
 //     existe es una descarga fallida en cada apertura.
 out = out.replace(/<link\s+rel="preload"[^>]*assets\/fonts\/[^>]*>\s*\n?/g, '');
 
+// 4c) Quitar las metas Open Graph, las de Twitter y el robots. Las og describen
+//     UNA URL pública para que WhatsApp arme su tarjeta; el portable es un
+//     archivo suelto que ya llegó por WhatsApp, sin URL que describir. Y og:url
+//     y og:image llevan https://preciocrea.parg.cl dentro: serían las únicas
+//     referencias a la red en el artefacto cuya razón de ser es no tener
+//     ninguna. El robots noindex sobra por lo mismo: en un file:// no hay
+//     rastreador que lo lea. Mismo criterio que el manifest, el apple-touch-icon
+//     y los preload de fuentes.
+out = out.replace(/<meta\s+property="og:[^>]*>\s*\n?/g, '');
+out = out.replace(/<meta\s+name="twitter:[^>]*>\s*\n?/g, '');
+out = out.replace(/<meta\s+name="robots"[^>]*>\s*\n?/g, '');
+//     Y sus comentarios, que si no quedan explicando etiquetas que ya no están
+//     en el archivo. Van atados a las primeras palabras del comentario: si se
+//     reescriben en index.html, hay que reescribirlos también aquí (el guard de
+//     más abajo no los ve, porque no son etiquetas).
+out = out.replace(/<!--\s*Open Graph:[\s\S]*?-->\s*\n?/g, '');
+out = out.replace(/<!--\s*La app se reparte SOLO[\s\S]*?-->\s*\n?/g, '');
+
 // 5) Comentario de cabecera para que el usuario sepa qué archivo es
 const header = `<!--
   PrecioCrea — versión portable (archivo único)
@@ -137,6 +155,15 @@ if (!/style-src 'self' 'unsafe-inline'/.test(out))  leftovers.push("CSP sin 'uns
 // Y ningún origen externo, que es lo que este build vino a eliminar.
 const externos = out.match(/(?:href|src)="https?:\/\/(?!viviloaiza\.cl|instagram\.com|open\.spotify\.com|wa\.me)[^"]+"/g);
 if (externos) leftovers.push(...new Set(externos));
+// Las metas Open Graph escriben su URL en content=, no en href/src, así que el
+// guard de arriba NO las ve. Necesitan el suyo: sin esto, cualquier meta nueva
+// en el <head> volvería a colar el dominio dentro del portable y el build lo
+// daría por bueno. Se descubriría cuando lo abriera una clienta.
+const metasSobrantes = out.match(/<meta\s+(?:property="og:|name="twitter:|name="robots")[^>]*>/g);
+if (metasSobrantes) leftovers.push(...metasSobrantes.map(m => `${m.slice(0, 52)}… (sobra en el portable)`));
+// Cualquier URL absoluta en un content=, que es por donde se cuelan las og.
+const contentExterno = out.match(/content="https?:\/\/(?!viviloaiza\.cl|instagram\.com|open\.spotify\.com|wa\.me)[^"]*"/g);
+if (contentExterno) leftovers.push(...new Set(contentExterno));
 if (leftovers.length) {
   console.error('❌ build-portable: no se inlinearon estos archivos:');
   leftovers.forEach(f => console.error(`   - ${f}`));
