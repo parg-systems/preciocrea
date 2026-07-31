@@ -73,11 +73,24 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 - **`docs/QA_CHECKLIST.md` encoge.** Los escenarios que la tanda ya cubre quedan
   marcados; lo que sigue sin marcar es lo que solo se comprueba con el teléfono
   en la mano: legibilidad al sol, instalación de la PWA, Web Share, iOS.
-- **Una dependencia, y solo para el taller.** `jsdom` entra como `devDependency`
-  en un `package.json` nuevo; es lo que permite probar los dos asistentes, que
-  leen y escriben el DOM directamente. No está en `ASSETS`, no lo mira
-  `build-portable.js` y no viaja en el sitio ni en el portable: quien clone el
-  repo y abra `index.html` sigue sin instalar nada.
+- **Y una segunda tanda, en un navegador de verdad: 36 pruebas más** (Playwright,
+  Chromium, ~34 s). Cubre lo que fuera de un navegador no existe y hasta ahora
+  solo se podía mirar a ojo: que el Estudio produzca un **JPEG válido de
+  1080×1920** —comprobado por los bytes del archivo, no por su extensión— y no
+  una imagen en blanco; que el service worker precachee y **la app abra sin
+  conexión**, con los productos guardados intactos; que **una corrección
+  publicada llegue en la siguiente apertura** (el network-first medido de
+  verdad, sirviendo un `index.html` distinto con el caché ya poblado); que el
+  caché viejo se borre al activarse el nuevo; que el botón Atrás no se salga de
+  la app; y que el recorrido completo no genere **ni una petición a un tercero**.
+  Los cuatro pasos de la calculadora se recorren tecleando, hasta ver $28.162 y
+  $42.243 en pantalla.
+- **Dos dependencias, y solo para el taller.** `jsdom` y `@playwright/test`
+  entran como `devDependencies` en un `package.json` nuevo: la primera permite
+  probar los dos asistentes, que leen y escriben el DOM directamente; la segunda
+  levanta el navegador. Ninguna está en `ASSETS`, ninguna la mira
+  `build-portable.js` y ninguna viaja en el sitio ni en el portable: quien clone
+  el repo y abra `index.html` sigue sin instalar nada.
 - **Hallazgo pendiente:** el role `eyebrow` —la palabra «Catálogo» de las dos
   portadas de carrusel— está declarado en las plantillas y en la lámina, pero
   `studioSlotText` no lo contempla y nunca se dibuja. Queda documentado en

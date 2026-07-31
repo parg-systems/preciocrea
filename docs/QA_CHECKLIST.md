@@ -2,14 +2,23 @@
 
 Pasar todos los escenarios antes de publicar una versión nueva.
 
-> **Antes de empezar, correr la tanda automática:** `node --test tests/`.
-> No necesita instalar nada. Cubre los precios, el parseo de montos y horas,
-> los saneadores de datos importados, el contraste de las publicaciones, el
+> **Antes de empezar, correr las dos tandas automáticas:** `npm run test:todo`
+> (o `node --test tests/` y `npx playwright test` por separado). Son 409
+> pruebas y unos 40 segundos.
+>
+> La rápida cubre los precios, el parseo de montos y horas, los saneadores de
+> datos importados, el contraste de las publicaciones, los dos asistentes, el
 > contrato de `data-action` y la coherencia entre `sw.js`, `index.html`,
-> `CHANGELOG.md` y este archivo. Las secciones de abajo marcadas con ✅ ya no
-> hace falta repasarlas a mano: si algo se rompió, la tanda lo dice en un
-> segundo. Lo que queda sin marcar es justamente lo que solo se puede
-> comprobar con el teléfono en la mano.
+> `CHANGELOG.md`, `package.json` y este archivo. La de navegador cubre el
+> canvas, el service worker sin conexión, el botón Atrás y el recorrido
+> completo de la calculadora.
+>
+> Las líneas marcadas con ✅ ya no hace falta repasarlas a mano: si algo se
+> rompió, las tandas lo dicen en menos de un minuto. Lo que queda sin marcar es
+> justamente lo que solo se puede comprobar con el teléfono en la mano — y
+> **el teléfono sigue siendo obligatorio**: los tests corren en Chromium de
+> escritorio, no en Safari de iOS, que es donde esta app ha dado sus peores
+> sorpresas.
 
 > **Antes que nada: subir `BUILD` en `sw.js`.** En cada entrega que toque HTML,
 > CSS o JS, aunque `VERSION` no cambie. Si no, el service worker sigue sirviendo
@@ -100,9 +109,15 @@ dato se sanea.
 
 ## Asistente de valor hora
 
-- [ ] **Aritmética.** Sin tocar nada, el resultado es **$8.300** ($1.170.000 de hogar × 50% = $585.000 · 5 días × 6 h × 4,33 = 130 h · 65% = 85 h cobrables · +20% ÷ 85).
-- [ ] Cambiar un solo dato mueve el número como corresponde: negocio al 100% → ~$16.500 · 3 días → ~$13.800 · sin cotizaciones → ~$6.900.
-- [ ] **Lo que se muestra es lo que se usa.** El número de «horas cobrables» de la fórmula, dividido a mano, da el mismo valor hora de la tarjeta.
+✅ *La aritmética entera está en `tests/asistentes.test.js`*, con el HTML real:
+los cuatro escenarios, el desglose intermedio, el redondeo antes de dividir, el
+piso legal y los recortes de los campos. Lo de abajo queda a mano por lo que la
+tanda no ve: los tres accesos, el ←, la siembra entre asistentes y el ancho de
+320 px.
+
+- [x] **Aritmética.** Sin tocar nada, el resultado es **$8.300** ($1.170.000 de hogar × 50% = $585.000 · 5 días × 6 h × 4,33 = 130 h · 65% = 85 h cobrables · +20% ÷ 85).
+- [x] Cambiar un solo dato mueve el número como corresponde: negocio al 100% → ~$16.500 · 3 días → ~$13.800 · sin cotizaciones → ~$6.900.
+- [x] **Lo que se muestra es lo que se usa.** El número de «horas cobrables» de la fórmula, dividido a mano, da el mismo valor hora de la tarjeta.
 - [ ] **Piso legal.** Con una meta baja y muchas horas el aviso se pone rojo («bajo el mínimo legal»); al subir la meta vuelve a verde.
 - [ ] **Doble conteo.** El aviso «aquí van los gastos de tu casa, los del negocio van en el paso 4» está visible sin desplegar nada.
 - [ ] Los dos caminos del bloque 1 funcionan: «Ayúdame a calcularlo» (desglose) y «Ya lo sé» (un solo monto).
@@ -116,7 +131,11 @@ dato se sanea.
 
 ## Asistente de costos fijos
 
-- [ ] **Aritmética.** Sin tocar nada: ($450.000 + $120.000) × 15% = **$85.500** de casa · **$32.500** del negocio · $250.000 ÷ 36 meses = **$6.944** → total **$124.944**, que entre 30 unidades son **$4.165 por producto**.
+✅ *La aritmética está en `tests/asistentes.test.js`*, incluidos el «taller
+aparte» al 0% y las divisiones que podrían romperse (cero años de vida útil,
+cero unidades).
+
+- [x] **Aritmética.** Sin tocar nada: ($450.000 + $120.000) × 15% = **$85.500** de casa · **$32.500** del negocio · $250.000 ÷ 36 meses = **$6.944** → total **$124.944**, que entre 30 unidades son **$4.165 por producto**.
 - [ ] La proporción de la casa mueve el total: 25% → ~$218.000 · 0% («taller aparte») → ~$39.400.
 - [ ] **Siembra desde el valor hora.** Calcular primero el valor hora con un arriendo distinto (ej. $620.000) y abrir después este asistente: el arriendo y las cuentas vienen con esos montos y la nota dice de dónde salieron.
 - [ ] **Sin solaparse con el paso 2.** El aviso «solo la parte del negocio» está visible, y el del asistente de valor hora remite al paso 4. El arriendo no debe cobrarse en los dos.
@@ -239,6 +258,15 @@ dato se sanea.
 
 ## PWA
 
+✅ *Parcialmente cubierto por `tests/e2e/pwa.spec.js`*: el registro del service
+worker, el nombre del caché con `VERSION` y `BUILD`, el precacheo del núcleo, la
+app abriendo **sin conexión** con sus productos intactos, el borrado del caché
+viejo al activarse el nuevo, el network-first del documento, y el manifest con
+todos sus iconos y capturas alcanzables. Todo eso en Chromium de escritorio.
+Lo de abajo sigue a mano porque es lo que **solo ocurre en un teléfono de
+verdad**: la instalación real, iOS, y cómo se ve el icono bajo la máscara de
+Android.
+
 - [ ] Servir la app por HTTPS (ej. GitHub Pages) e instalar como PWA en Android Chrome: aparece el ícono en el cajón de apps.
 - [ ] Instalar en iOS Safari ("Compartir → Agregar a inicio"): se abre en modo standalone.
 - [ ] **El acceso a instalar existe siempre.** La fila «Instalar en tu teléfono» está en la pestaña «Tu marca» aunque el aviso del inicio no haya aparecido, y **desaparece** cuando la app ya está instalada (abrirla desde el ícono y comprobarlo).
@@ -260,6 +288,12 @@ dato se sanea.
 - [ ] **Ficha de instalación en escritorio.** Chrome de escritorio → icono de instalar: la ficha muestra la captura `wide`. En Application → Manifest no hay advertencias y los `sizes` declarados coinciden con los píxeles reales.
 
 ## Botón Atrás (Android / navegador)
+
+✅ *Parcialmente cubierto por `tests/e2e/flujo.spec.js`*: salir de la
+calculadora sin salir de la app, y varias sheets encadenadas sin dejar la
+pantalla en blanco. El resto sigue a mano — son doce recorridos distintos y el
+que importa de verdad, «el segundo Atrás sale de la app», solo se comprueba en
+la PWA instalada.
 
 - [ ] Con un **modal abierto** (eliminar, selector de icono, guía de instalación): Atrás lo cierra/cancela, sin salir.
 - [ ] Con la **bienvenida** abierta: Atrás la cierra y la app sigue.

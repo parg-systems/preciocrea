@@ -26,3 +26,8 @@ dist/
 
 # Dependencias de desarrollo (solo para los tests; la app no usa ninguna)
 node_modules/
+
+# Salidas de los tests de navegador (Playwright)
+test-results/
+playwright-report/
+blob-report/

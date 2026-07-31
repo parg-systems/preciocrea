@@ -118,23 +118,34 @@ El script aborta con error si alguna sustitución no encuentra su patrón en `in
 ## Tests
 
 ```bash
-npm install          # solo la primera vez: instala jsdom (dependencia de desarrollo)
-node --test tests/   # la tanda entera, unos 4 segundos
+npm install                       # solo la primera vez
+npx playwright install chromium   # solo la primera vez (~115 MB)
+
+node --test tests/                # tanda rápida: 373 pruebas, ~4 s
+npx playwright test               # tanda de navegador: 36 pruebas, ~34 s
+npm run test:todo                 # las dos
 ```
 
-373 pruebas que corren sobre el código tal como está en disco. Cubren la
-fórmula del precio (con la regresión de la 1.6.0 escrita como test), el parseo
-de montos y horas en español de Chile, los saneadores de todo lo que entra
-desde `localStorage` o un respaldo, el mensaje de WhatsApp, el contraste AA de
-las publicaciones, los dos asistentes —valor hora y costos fijos— con el HTML
-real, la importación de punta a punta, y que cada `data-action` tenga
-manejador. `tests/README.md` explica qué protege cada archivo y qué queda
-fuera a propósito.
+**409 pruebas en total, en dos tandas.** La rápida corre sobre el código tal
+como está en disco y cubre la fórmula del precio (con la regresión de la 1.6.0
+escrita como test), el parseo de montos y horas en español de Chile, los
+saneadores de todo lo que entra desde `localStorage` o un respaldo, el mensaje
+de WhatsApp, el contraste AA de las publicaciones, los dos asistentes con el
+HTML real, la importación de punta a punta y que cada `data-action` tenga
+manejador.
 
-**La app sigue sin dependencias.** La única, `jsdom`, es de desarrollo: no está
-en la lista `ASSETS` de `sw.js`, no la mira `build-portable.js` y no viaja ni
-en el sitio publicado ni en el portable. Clonar y abrir `index.html` sigue sin
-instalar nada; el `npm install` solo hace falta para correr los tests.
+La de navegador levanta un Chromium y cubre lo que fuera de uno no existe: que
+el Estudio produzca un **JPEG válido de 1080×1920** y no una imagen en blanco,
+que el service worker precachee y la app **abra sin conexión**, que una
+corrección publicada llegue en la siguiente apertura, que el botón Atrás no se
+salga de la app, y que el recorrido completo no genere **ni una petición a un
+tercero**. `tests/README.md` explica qué protege cada archivo y qué queda fuera
+a propósito.
+
+**La app sigue sin dependencias.** `jsdom` y `Playwright` son de desarrollo: no
+están en la lista `ASSETS` de `sw.js`, no las mira `build-portable.js` y no
+viajan ni en el sitio publicado ni en el portable. Clonar y abrir `index.html`
+sigue sin instalar nada; el `npm install` solo hace falta para correr los tests.
 
 **Trabajar en `tests/` no obliga a subir `BUILD`**: esa carpeta no se despacha.
 
@@ -179,12 +190,15 @@ preciocrea/
 │   └── QA_CHECKLIST.md           ← Pruebas manuales pre-release
 ├── tests/                        ← Tanda automática: node --test tests/
 │   ├── README.md                 ← Qué cubre cada archivo y qué no cubre
-│   ├── helpers/                  ← Los dos arneses: node:vm y jsdom
+│   ├── helpers/                  ← Los arneses: node:vm y jsdom
+│   ├── e2e/                      ← Tanda de navegador (Playwright) + su servidor
 │   └── *.test.js                 ← Precio, entrada, saneo, color, CSP, asistentes…
 ├── scripts/
 │   └── build-portable.js         ← Genera el HTML de archivo único
-├── package.json                  ← Solo para los tests (jsdom). La app no lo usa
+├── package.json                  ← Solo para los tests. La app no lo usa
+├── playwright.config.js          ← Config de la tanda de navegador
 ├── node_modules/                 ← ⨯ no versionado: dependencias de desarrollo
+├── test-results/                 ← ⨯ no versionado: salidas de Playwright
 ├── slides/
 │   ├── guia_operativa/           ← Diapositivas PNG de la guía
 │   └── lanzamiento_emocional/    ← Diapositivas PNG del lanzamiento
@@ -193,9 +207,9 @@ preciocrea/
 ```
 
 Lo marcado con ⨯ está en `.gitignore` y **no aparece al clonar**: `dist/`,
-`_archivo/`, `.claude/`, `node_modules/` y el `preciocrea-portable.html` de la
-raíz son artefactos locales. `dist/`, el portable y `node_modules/` se
-regeneran; `_archivo/` es histórico de esta máquina.
+`_archivo/`, `.claude/`, `node_modules/`, `test-results/` y el
+`preciocrea-portable.html` de la raíz son artefactos locales. Todos se
+regeneran, salvo `_archivo/`, que es histórico de esta máquina.
 
 ## Tecnologías
 
@@ -217,11 +231,12 @@ pesarían los pesos por separado.
 
 ### Al publicar
 
-**Primero, la tanda automática: `node --test tests/`** (ver [Tests](#tests)).
-Entre otras cosas verifica sola la coherencia de versión entre `sw.js`,
-`index.html`, `CHANGELOG.md`, el checklist y `package.json` — que es justo lo
-que se había desincronizado antes. Recién después va `docs/QA_CHECKLIST.md`,
-que es lo que solo se puede comprobar con el teléfono en la mano.
+**Primero, las dos tandas automáticas: `npm run test:todo`** (ver
+[Tests](#tests)). Entre otras cosas verifican solas la coherencia de versión
+entre `sw.js`, `index.html`, `CHANGELOG.md`, el checklist y `package.json` —que
+es justo lo que se había desincronizado antes— y que la app abra sin conexión
+con el `BUILD` nuevo. Recién después va `docs/QA_CHECKLIST.md`, que es lo que
+solo se puede comprobar con el teléfono en la mano.
 
 **Subir `BUILD` en `sw.js` en cada entrega**, aunque `VERSION` no se mueva. Son
 cosas distintas: `VERSION` es lo que se le muestra a la creadora, `BUILD` es la
