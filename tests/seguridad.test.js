@@ -187,3 +187,76 @@ describe('el nombre malicioso llega al DOM como texto, no como elemento', () => 
     assert.equal(real.$('products-list').querySelectorAll('img').length, 0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// La fecha del producto. Fue el único campo del detalle que se pintaba sin
+// esc() (revisión de seguridad post-2.3.1): el saneador aceptaba cualquier
+// string de 30 caracteres y `showDetail` lo interpolaba crudo. En el sitio la
+// CSP frenaba el script; en el portable, con 'unsafe-inline', ejecutaba.
+// Dos capas, dos tests: el saneador limpia, y el render escapa igual aunque
+// el dato hostil ya viva en el estado (un localStorage de una versión vieja).
+
+describe('la fecha del producto no llega al DOM como marcado', () => {
+  const showDetail = real.get('showDetail');
+
+  test('el saneador de importación quita los caracteres con significado en HTML', () => {
+    for (const vector of VECTORES) {
+      const p = sanear({ id: 7, name: 'Jabón', minP: 1, idealP: 2, date: vector });
+      assert.ok(!/[<>"'&]/.test(p.date),
+        `quedó un carácter peligroso en la fecha: ${p.date}`);
+    }
+  });
+
+  test('una fecha sin sanear tampoco crea elementos en el detalle', () => {
+    conProducto({ date: '<svg onload=alert(1)>' });
+    showDetail(1);
+    const fecha = real.$('det-body').querySelector('.detail-date');
+    assert.ok(fecha, 'no se pintó la línea de fecha');
+    assert.equal(fecha.childElementCount, 0,
+      'la fecha hostil creó elementos dentro del detalle');
+    // Y se ve como texto: escapar no puede significar perderla.
+    assert.ok(fecha.textContent.includes('<svg'),
+      'la fecha debía mostrarse como texto crudo');
+  });
+
+  test('el camino completo respaldo → detalle queda inerte', () => {
+    const p = sanear({ id: 9, name: 'Vela', minP: 1, idealP: 2,
+      date: '"><img src=x onerror=alert(1)>' });
+    Sr.products = [p];
+    showDetail(9);
+    assert.equal(real.$('det-body').querySelectorAll('[onerror], [onload]').length, 0,
+      'sobrevivió un atributo de evento en el detalle');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Las miniaturas. loadThumbs validaba solo el prefijo del data URL: una
+// miniatura manipulada con comillas pasaba el filtro y rompía el atributo
+// src al pintarse. Ahora se exige el alfabeto base64 completo (espejo de la
+// validación del logo de marca) y el render escapa por si acaso.
+
+describe('una miniatura manipulada en localStorage no rompe el atributo src', () => {
+  const loadThumbs = real.get('loadThumbs');
+  const KEY = 'pc_thumbs_v1';
+
+  test('loadThumbs descarta un data URL con caracteres fuera del base64', () => {
+    real.localStorage.setItem(KEY, JSON.stringify({
+      1: 'data:image/jpeg;base64,AA" onerror="alert(1)',
+      2: 'data:image/jpeg;base64,<script>',
+      3: 'data:image/jpeg;base64,/9j/4AAQSkZJRg=='
+    }));
+    const out = loadThumbs();
+    assert.equal(out[1], undefined, 'pasó la miniatura con comillas');
+    assert.equal(out[2], undefined, 'pasó la miniatura con marcado');
+    assert.ok(out[3], 'la miniatura legítima debía sobrevivir');
+    real.localStorage.removeItem(KEY);
+  });
+
+  test('aunque el estado ya tenga una miniatura hostil, el render la escapa', () => {
+    Sr.thumbs = { 1: 'data:image/jpeg;base64,AA" onerror="alert(1)' };
+    conProducto({});
+    assert.equal(real.$('products-list').querySelectorAll('[onerror]').length, 0,
+      'la miniatura hostil inyectó un atributo onerror');
+    Sr.thumbs = {};
+  });
+});

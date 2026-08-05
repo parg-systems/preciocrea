@@ -8,6 +8,47 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 
 ---
 
+## [2.3.2] — 2026-08-04 · revisión de seguridad: dos rendijas cerradas
+
+### Seguridad
+
+- **La fecha del producto se pintaba sin escapar.** Era el único campo del
+  detalle que no pasaba por `esc()`, y el saneador de importación aceptaba
+  cualquier texto de 30 caracteres como fecha. Un respaldo `.json` manipulado
+  — y los respaldos viajan por WhatsApp — podía inyectar marcado en la vista
+  de detalle. En el sitio publicado la CSP frenaba el script; en el portable,
+  que lleva `'unsafe-inline'` por necesidad del inlining, habría ejecutado.
+  Ahora hay dos capas: el saneador quita los caracteres con significado en
+  HTML al importar, y el render escapa igual por si el dato hostil ya vivía
+  en un `localStorage` de una versión vieja.
+
+- **Las miniaturas se validaban solo por el prefijo.** `loadThumbs` exigía que
+  el data URL empezara por `data:image/jpeg;base64,` pero no revisaba el resto:
+  una miniatura manipulada con comillas pasaba el filtro y rompía el atributo
+  `src` al pintarse. Ahora se exige el alfabeto base64 completo (espejo de la
+  validación que el logo de marca ya tenía) y el render la escapa por si acaso.
+  Riesgo bajo — las miniaturas no viajan en los respaldos — pero la puerta
+  queda cerrada.
+
+- Del resto de la revisión, nada que corregir: sin secretos en el repo ni en
+  el historial, sin peticiones externas, la app nunca lee la URL, y los demás
+  sanitizadores (perfiles, marca, logo) están bien.
+
+### Añadido
+
+- **El tag de versión al pie de la pantalla de inicio** (`v2.3.2`), discreto,
+  bajo la nota de marcas. Hasta ahora la versión solo se veía enterrada en la
+  pantalla de ayuda; ahora basta abrir la app para saber cuál corre — útil
+  justo cuando hay que confirmar que una actualización llegó al teléfono.
+
+### Pruebas
+
+- `tests/seguridad.test.js` — 7 casos nuevos: la fecha hostil por el camino
+  completo respaldo → detalle (la vista de detalle no estaba cubierta), y las
+  miniaturas malformadas que `loadThumbs` debe descartar.
+
+---
+
 ## [2.3.1] — 2026-08-04 · la pantalla de publicar vuelve a deslizarse con el dedo
 
 ### Corregido

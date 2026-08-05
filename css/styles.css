@@ -998,6 +998,13 @@ body.sheet-open .app { padding-bottom: 40px; }
   line-height: 1.55;
   color: var(--muted-soft);
 }
+.footer-version {
+  padding: 10px 0 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--muted-soft);
+}
 
 /* ============================================================
    PESTAÑA · PRODUCTOS

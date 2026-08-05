@@ -673,7 +673,7 @@ function renderProducts() {
     const thumb = getThumb(p.id);
     return `
     <div class="product-card" data-action="showDetail" data-id="${p.id}" role="button" tabindex="0" aria-label="Abrir ${esc(p.name)}">
-      <div class="pc-emoji${thumb ? ' has-thumb' : ''}">${thumb ? `<img class="pc-thumb" src="${thumb}" alt="">` : (p.emoji ? esc(p.emoji) : '🎨')}</div>
+      <div class="pc-emoji${thumb ? ' has-thumb' : ''}">${thumb ? `<img class="pc-thumb" src="${esc(thumb)}" alt="">` : (p.emoji ? esc(p.emoji) : '🎨')}</div>
       <div class="pc-info">
         <div class="pc-name">${esc(p.name)}</div>
         ${p.desc ? `<div class="pc-desc">${esc(p.desc)}</div>` : ''}
@@ -1681,7 +1681,7 @@ function showDetail(idOrEvent, id) {
       </div>
       <div>
         <div class="detail-pname" id="det-pname">${esc(p.name)}</div>
-        <div class="detail-date">Guardado el ${p.date}</div>
+        <div class="detail-date">Guardado el ${esc(p.date)}</div>
       </div>
     </div>
 
@@ -1890,7 +1890,10 @@ function loadThumbs() {
     const id = Number(k);
     if (!Number.isFinite(id) || id <= 0) continue;
     if (typeof v !== 'string' || v.length > THUMB_MAX_STORED) continue;
-    if (!v.startsWith('data:image/jpeg;base64,')) continue;
+    // Alfabeto completo, no solo el prefijo: una miniatura manipulada con
+    // comillas pasaría un startsWith y rompería el atributo src al pintarse.
+    // Espejo de la validación del logo de marca (studio.js).
+    if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(v)) continue;
     out[id] = v;
   }
   return out;
@@ -2048,8 +2051,10 @@ function sanitizeImportedProduct(raw) {
   const rawAdded = Number(raw.addedAt);
   const addedAt = Number.isFinite(rawAdded) && rawAdded > 0 ? rawAdded : id;
 
+  // La fecha es texto libre en respaldos viejos; se le quitan los caracteres
+  // con significado en HTML porque un respaldo puede venir manipulado.
   const date = typeof raw.date === 'string'
-    ? raw.date.slice(0, MAX_DATE_LEN)
+    ? raw.date.replace(/[<>"'&]/g, '').slice(0, MAX_DATE_LEN)
     : new Date().toLocaleDateString('es-CL');
 
   // Un respaldo v1 no trae `desc` ni `emoji` propio: se rellenan con el valor

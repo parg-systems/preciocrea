@@ -268,7 +268,8 @@ cero unidades).
 
 - [ ] Pie de la pestaña Calcular: "Creada con amor por **viviLoaiza.cl**…", **"Queda prohibida su venta o distribución comercial."**, el distintivo **© viviLoaiza.cl** y el aviso de marcas registradas (Spotify, WhatsApp, Android, Apple). Los cuatro deben estar.
 - [ ] Vista de Ayuda: al final aparece el bloque "Sobre la creadora" con los dos enlaces (sitio + Instagram), ambos abren en pestaña nueva.
-- [ ] Justo debajo, la línea de versión dice **«Versión 2.3.1 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**. — ✅ *la coincidencia la verifica `tests/repo.test.js`; a ojo solo queda comprobar que la línea se ve*
+- [ ] Justo debajo, la línea de versión dice **«Versión 2.3.2 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**. — ✅ *la coincidencia la verifica `tests/repo.test.js`; a ojo solo queda comprobar que la línea se ve*
+- [ ] Pie de la pestaña Calcular: bajo el aviso de marcas aparece el tag **v2.3.2**, discreto, y el número coincide con la línea de versión de Ayuda.
 - [ ] IVA siempre activado: en la lista de productos, detalle, resultados y WhatsApp se ve el precio con IVA sin opción de ocultarlo.
 
 ## PWA

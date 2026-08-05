@@ -17,8 +17,8 @@
 // olvidar porque no es "HTML/CSS/JS": se sirve cache-first como todo lo demás,
 // así que corregirlo sin subir BUILD deja sw.js byte a byte idéntico y el
 // cambio no llega nunca — ni hay forma de arreglarlo desde el teléfono.
-const VERSION = '2.3.1';
-const BUILD   = 12;
+const VERSION = '2.3.2';
+const BUILD   = 13;
 const CACHE = `preciocrea-${VERSION}-b${BUILD}`;
 const ASSETS = [
   './',
