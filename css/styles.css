@@ -3186,7 +3186,21 @@ body.sheet-open .app { padding-bottom: 40px; }
 
 /* Los atributos width/height del canvas dan la proporción intrínseca, así que
    no hace falta aspect-ratio (que Safari antiguo no soporta).
-   touch-action:none deja libres los gestos de encuadre de la foto. */
+
+   touch-action decide si un gesto táctil es de la app o del navegador, y lo
+   resuelve el compositor ANTES de que corra una línea de JS. Este canvas ocupa
+   ~el 70% de la pantalla del teléfono (346x615 px en uno de 390): con
+   touch-action:none permanente era una zona muerta donde el dedo no podía
+   bajar por el editor, y de paso movía la foto sin querer al intentarlo. Con
+   mouse (la rueda no pasa por aquí) y con lápiz no se notaba: por eso tardó en
+   verse.
+
+   Por defecto el desplazamiento vertical es del navegador; el bloqueo existe
+   solo mientras dura el modo encuadre. pinch-zoom se conserva a propósito: el
+   viewport de index.html no bloquea el zoom del navegador y ampliar la
+   pantalla es accesibilidad básica. Si un navegador antiguo no entiende el
+   valor compuesto descarta la declaración entera y cae en `auto`, que también
+   desplaza: el fallo va hacia el lado seguro. */
 #studio-canvas {
   display: block;
   width: 100%;
@@ -3194,7 +3208,17 @@ body.sheet-open .app { padding-bottom: 40px; }
   border-radius: 24px;
   box-shadow: 0 18px 44px rgba(60,35,75,0.22);
   background: var(--card);
+  touch-action: pan-y pinch-zoom;
+}
+
+/* Modo encuadre: el canvas se queda con TODOS los gestos táctiles. El resto
+   del editor sigue desplazándose con normalidad, así que nunca se queda uno
+   atrapado. El anillo va en box-shadow y no en outline porque tiene que seguir
+   las esquinas redondeadas en cualquier navegador. */
+.studio-stage.encuadrando #studio-canvas {
   touch-action: none;
+  cursor: move;
+  box-shadow: 0 0 0 3px var(--violet), 0 18px 44px rgba(60,35,75,0.22);
 }
 
 .studio-font-note {
@@ -3346,6 +3370,21 @@ body.sheet-open .app { padding-bottom: 40px; }
 .studio-photo-btn.danger {
   border-color: #F3D6DC;
   color: var(--coral-deep);
+}
+
+/* El botón de encuadre ocupa su propia fila: en 390px, tres columnas dejarían
+   el texto cortado. */
+.studio-frame-btn {
+  width: 100%;
+  margin-top: 9px;
+}
+
+/* El estado visual cuelga de aria-pressed, no de una clase paralela: así el
+   estilo y lo que anuncia el lector de pantalla no pueden divergir. */
+.studio-photo-btn[aria-pressed="true"] {
+  border-color: var(--violet);
+  background: var(--violet);
+  color: #fff;
 }
 
 .studio-zoom-row {

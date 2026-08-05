@@ -249,6 +249,37 @@ describe('index.html — invariantes de seguridad y arquitectura', () => {
   });
 });
 
+describe('styles.css — la vista previa no vuelve a ser una zona muerta', () => {
+  // Este bloque existe por un fallo concreto: #studio-canvas llevaba
+  // touch-action:none permanente y, como ocupa ~el 70% de la pantalla del
+  // teléfono, el dedo no podía deslizar el editor hacia abajo. Con mouse (la
+  // rueda no pasa por touch-action) y con lápiz funcionaba, así que tardó
+  // meses en detectarse. Es exactamente el tipo de regla que alguien
+  // "simplifica" dentro de un año sin saber por qué estaba así.
+  const css = leer('css/styles.css');
+  const bloque = re => (css.match(re) || [''])[0];
+
+  const canvas = bloque(/#studio-canvas\s*\{[^}]*\}/);
+  const encuadre = bloque(/\.studio-stage\.encuadrando\s+#studio-canvas\s*\{[^}]*\}/);
+
+  test('#studio-canvas cede el desplazamiento vertical al navegador', () => {
+    assert.ok(canvas, 'no se encontró la regla #studio-canvas');
+    assert.match(canvas, /touch-action:\s*pan-y/);
+  });
+
+  test('#studio-canvas no bloquea los gestos de forma permanente', () => {
+    assert.ok(
+      !/touch-action:\s*none/.test(canvas),
+      'touch-action:none volvió a #studio-canvas: el dedo no podrá deslizar sobre la vista previa'
+    );
+  });
+
+  test('el bloqueo existe solo dentro del modo encuadre', () => {
+    assert.ok(encuadre, 'no se encontró la regla .studio-stage.encuadrando #studio-canvas');
+    assert.match(encuadre, /touch-action:\s*none/);
+  });
+});
+
 describe('sintaxis de todo el JavaScript del proyecto', () => {
   for (const rel of ['js/app.js', 'js/studio.js', 'sw.js', 'scripts/build-portable.js']) {
     test(`${rel} parsea sin errores`, () => {

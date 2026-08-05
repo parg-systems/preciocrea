@@ -213,7 +213,21 @@ cero unidades).
   - Sin descripción: el nombre se recentra ocupando todo el espacio libre de la tarjeta, sin hueco muerto ni píldora vacía.
 - [ ] Foto horizontal, vertical, cuadrada y un PNG con transparencia: todas llenan el hueco sin deformarse ni dejar borde.
 - [ ] **Foto de iPhone tomada en vertical**: sale derecha, no girada.
-- [ ] Arrastrar la foto a los cuatro extremos con el zoom al máximo: nunca aparece borde vacío. "↺ Centrar" la devuelve al inicio.
+- [ ] Con el modo "Mover la foto" encendido, arrastrar la foto a los cuatro extremos con el zoom al máximo: nunca aparece borde vacío. "↺ Centrar" la devuelve al inicio.
+
+### El dedo sobre la vista previa
+
+> Esta sección existe por un fallo que tardó meses en verse: la vista previa se quedaba con todos los gestos táctiles, y como ocupa el 70% de la pantalla, el dedo no podía bajar por el editor. Con mouse y con S Pen funcionaba. **Estas comprobaciones hay que hacerlas con el dedo, en el teléfono.**
+
+- [ ] **Con el dedo, apoyado encima de la vista previa**, deslizar hacia arriba baja por el editor igual que en cualquier otra parte de la pantalla. Repetir con la barra de URL visible y oculta.
+- [ ] Ese mismo gesto **no descuadra la foto**: al volver arriba, sigue como estaba.
+- [ ] "✥ Mover la foto" enciende el modo: el botón queda relleno en violeta y pasa a decir "✓ Listo", la vista previa se marca con un anillo violeta y el texto de ayuda cambia. Ahí el dedo arrastra la foto y la pantalla **no** se desplaza sobre el canvas — pero sí sigue desplazándose tocando fuera de él.
+- [ ] "✓ Listo" apaga el modo y el dedo vuelve a deslizar la pantalla también sobre la vista previa.
+- [ ] El modo queda apagado al: cambiar de lámina, cambiar la foto, y salir del editor y volver a entrar. **Nunca** se encuentra encendido de entrada.
+- [ ] Sin foto en la lámina, el botón no aparece y la vista previa se desplaza con el dedo.
+- [ ] Con el modo **apagado**, pellizcar con dos dedos sobre la vista previa **amplía la página** (zoom del navegador). Con el modo **encendido**, pellizcar **acerca la foto** dentro de la publicación.
+- [ ] Ruta sin gestos: con el modo apagado, el deslizador 🔍 y "↺ Centrar" funcionan igual que siempre, también con teclado (Tab + flechas / Espacio).
+- [ ] **No regresión de escritorio y S Pen:** sin tocar el botón, arrastrar la foto sobre la vista previa con el mouse o con el lápiz sigue encuadrando como antes.
 - [ ] Archivo que no es imagen o de más de 20 MB: toast claro, sin crash.
 - [ ] La imagen descargada mide exactamente **1080×1920** y se ve **idéntica a la vista previa**.
 - [ ] Salir con "←" sin haber descargado: pregunta. "Seguir editando" conserva la foto; "Salir igual" vuelve a la pestaña Publicar.
@@ -227,6 +241,7 @@ cero unidades).
 - [ ] Escribir el título de portada y luego marcar/desmarcar un producto **no borra lo escrito**.
 - [ ] Cambiar de estilo cambia la portada **y** las láminas a la vez, manteniendo la misma estética.
 - [ ] Los chips de lámina cambian los campos editables: la portada muestra título y bajada; las láminas, nombre y precio.
+- [ ] Encender "✥ Mover la foto" en una lámina y saltar a otra con los chips: el modo queda **apagado** y el dedo vuelve a deslizar la pantalla.
 - [ ] "Descargar las N láminas" baja los archivos numerados `-01`, `-02`… en orden. En Android Chrome aparece el permiso de descargas múltiples.
 - [ ] Tocar el botón dos veces seguidas no duplica ni corrompe las descargas.
 
@@ -253,7 +268,7 @@ cero unidades).
 
 - [ ] Pie de la pestaña Calcular: "Creada con amor por **viviLoaiza.cl**…", **"Queda prohibida su venta o distribución comercial."**, el distintivo **© viviLoaiza.cl** y el aviso de marcas registradas (Spotify, WhatsApp, Android, Apple). Los cuatro deben estar.
 - [ ] Vista de Ayuda: al final aparece el bloque "Sobre la creadora" con los dos enlaces (sitio + Instagram), ambos abren en pestaña nueva.
-- [ ] Justo debajo, la línea de versión dice **«Versión 2.3.0 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**. — ✅ *la coincidencia la verifica `tests/repo.test.js`; a ojo solo queda comprobar que la línea se ve*
+- [ ] Justo debajo, la línea de versión dice **«Versión 2.3.1 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**. — ✅ *la coincidencia la verifica `tests/repo.test.js`; a ojo solo queda comprobar que la línea se ve*
 - [ ] IVA siempre activado: en la lista de productos, detalle, resultados y WhatsApp se ve el precio con IVA sin opción de ocultarlo.
 
 ## PWA

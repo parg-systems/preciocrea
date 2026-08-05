@@ -8,6 +8,57 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 
 ---
 
+## [2.3.1] — 2026-08-04 · la pantalla de publicar vuelve a deslizarse con el dedo
+
+### Corregido
+
+- **La vista previa de la publicación atrapaba el dedo.** En el editor del
+  Estudio no se podía bajar hacia los botones deslizando con el dedo: había que
+  buscar los pocos milímetros de margen que quedaban a los lados. La causa era
+  una sola declaración, `touch-action: none` en `#studio-canvas`, puesta para
+  que el arrastre encuadrara la foto. Esa propiedad la resuelve el compositor
+  del navegador antes de que corra una línea de JS, y el canvas mide 346×615 px
+  en un teléfono de 390: el 70% de la pantalla era zona muerta.
+
+  Se descubrió tarde porque **con mouse y con lápiz funcionaba**. La rueda del
+  mouse no pasa por `touch-action`, y el S Pen genera eventos de lápiz que no
+  compiten con el desplazamiento. Solo el dedo chocaba con la regla — es decir,
+  solo la forma en que se usa la app de verdad.
+
+  De regalo se va el fallo inverso, que nadie había llegado a reportar: al
+  intentar bajar, el dedo **movía la foto sin querer**.
+
+### Añadido
+
+- **Botón "✥ Mover la foto".** El encuadre pasa a ser un modo explícito. Por
+  defecto el dedo desliza la pantalla en todas partes, incluida la vista previa;
+  al tocar el botón, la vista previa se marca con un anillo violeta, el botón
+  pasa a decir "✓ Listo" y ahí sí el dedo arrastra la foto y el pellizco la
+  acerca. El modo se apaga solo al cambiar de lámina, al cambiar la foto y al
+  salir del editor: un bloqueo pegado devolvería el problema original.
+
+  El mouse y el lápiz **no** necesitan el botón: siguen arrastrando siempre,
+  como hasta ahora. La guarda vive en `pointerType`, así que el escritorio no
+  cambia en nada.
+
+- **Pellizcar para ampliar la página vuelve a funcionar sobre la vista previa**
+  con el modo apagado. Antes estaba bloqueado sin querer, y ampliar la pantalla
+  es accesibilidad básica.
+
+### Pruebas
+
+- `tests/encuadre.test.js` — 21 casos sobre el modo y, sobre todo, sobre sus
+  cuatro puntos de apagado.
+- `tests/e2e/encuadre.spec.js` — 10 casos con gestos táctiles sintetizados por
+  CDP. Son los únicos que pueden responder la pregunta de verdad: el scroll lo
+  decide el compositor, así que los eventos despachados desde JS no desplazan
+  nada por muy bien formados que estén. Incluye la no regresión del mouse.
+- `tests/repo.test.js` — comprobación estática de que `touch-action: none` no
+  vuelve a `#studio-canvas`. La regla es tentadora de "simplificar" y su fallo
+  no se nota en el navegador de quien desarrolla.
+
+---
+
 ## [2.3.0] — 2026-07-30 · el enlace se comparte con cara, y con casa propia
 
 ### Añadido

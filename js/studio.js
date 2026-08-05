@@ -82,7 +82,8 @@ const STUDIO = {
   _prime: 0,      // temporizador del pre-render de compartir
   _saved: false,  // ¿ya descargó o compartió algo de esta pieza?
   _exp: null,     // canvas offscreen reusado para exportar
-  _busy: false    // evita renders concurrentes por doble toque
+  _busy: false,   // evita renders concurrentes por doble toque
+  _framing: false // modo encuadre: mientras dura, el canvas se queda los gestos táctiles
 };
 
 // Saneo el perfil de marca igual que sanitizeImportedProduct: reconstruyo el
@@ -1631,8 +1632,11 @@ async function studioPickPhoto(input) {
       } catch(e) {}
     }
     studioRequestPreview();
+    // Foto nueva, encuadre nuevo: el modo arranca apagado para que la pantalla
+    // se pueda seguir deslizando mientras la mira.
+    STUDIO._framing = false;
     renderStudioPhotoBar();
-    toast('📷 ¡Foto lista! Arrástrala para encuadrar');
+    toast('📷 ¡Foto lista! Toca "Mover la foto" para elegir qué parte se ve');
   } catch(e) {
     // Caso típico: un HEIC de iPhone abierto en Android o escritorio.
     toast('❌ No se pudo leer esa foto. Prueba con una JPG o PNG.');
@@ -1648,6 +1652,43 @@ function studioCenterPhoto() {
   studioRequestPreview();
 }
 
+// La vista previa ocupa casi toda la pantalla del teléfono. Si se quedara con
+// los gestos táctiles de forma permanente no habría por dónde bajar por el
+// editor con el dedo, así que el bloqueo se enciende a mano y solo mientras
+// dura el encuadre. Sin foto no hay nada que mover: el modo no puede activarse.
+function toggleStudioFraming(on) {
+  const slide = studioActiveSlide();
+  const quiere = on == null ? !STUDIO._framing : !!on;
+  STUDIO._framing = quiere && !!(slide && slide.photo);
+  applyStudioFraming();
+}
+
+// Refleja el flag en el DOM SIN volver a pintar la barra de foto: un innerHTML
+// se llevaría por delante el botón que la creadora acaba de tocar y el foco se
+// perdería a mitad de la interacción. Tampoco repinta el canvas: el modo no
+// cambia un solo píxel de la publicación.
+function applyStudioFraming() {
+  const on = !!STUDIO._framing;
+
+  const stage = document.querySelector('.studio-stage');
+  if (stage) stage.classList.toggle('encuadrando', on);
+
+  const btn = document.getElementById('studio-frame-btn');
+  if (btn) {
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.textContent = on ? '✓ Listo' : '✥ Mover la foto';
+  }
+
+  const hint = document.getElementById('studio-frame-hint');
+  if (hint) hint.textContent = studioFrameHint(on);
+}
+
+function studioFrameHint(on) {
+  return on
+    ? 'Arrastra la foto sobre la vista previa para elegir qué parte se ve, y pellizca para acercarla. Cuando termines toca "Listo" y vuelves a deslizar la pantalla.'
+    : '¿Quieres cambiar la parte de la foto que se ve? Toca "Mover la foto".';
+}
+
 function setStudioZoom(value) {
   const slide = studioActiveSlide();
   if (!slide || !slide.frame) return;
@@ -1657,8 +1698,9 @@ function setStudioZoom(value) {
 
 // Arrastre y pellizco sobre el canvas para encuadrar la foto. El viewport NO
 // bloquea el zoom del navegador (a propósito: pellizcar para ampliar es
-// accesibilidad básica); el gesto propio no compite con él porque el canvas
-// declara touch-action:none en el CSS.
+// accesibilidad básica); con el modo encuadre apagado el pellizco amplía la
+// página, y con el modo encendido el canvas declara touch-action:none en el
+// CSS y se queda con el gesto para acercar la foto.
 function studioAttachGestures(canvasEl) {
   const pts = new Map();
   let start = null;
@@ -1705,6 +1747,12 @@ function studioAttachGestures(canvasEl) {
   canvasEl.addEventListener('pointerdown', e => {
     const slide = studioActiveSlide();
     if (!slide || !slide.photo) return;
+    // Con el dedo, arrastrar solo encuadra dentro del modo encuadre: fuera de
+    // él el gesto le pertenece a la página. El mouse y el lápiz no compiten
+    // nunca con el desplazamiento, así que siguen arrastrando siempre y en el
+    // escritorio no cambia nada. El CSS ya lo impide, pero la regla vive
+    // también aquí para que un cambio futuro no reabra el problema en silencio.
+    if (e.pointerType === 'touch' && !STUDIO._framing) return;
     canvasEl.setPointerCapture(e.pointerId);
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     start = begin();
@@ -2032,6 +2080,8 @@ function setStudioSlide(i) {
   const p = STUDIO.piece;
   if (i < 0 || i >= p.slides.length) return;
   p.active = i;
+  // Otra lámina, otra foto (o ninguna): dejar el bloqueo puesto sería una trampa.
+  STUDIO._framing = false;
   renderStudioSlides();
   renderStudioPhotoBar();
   renderStudioFields();
@@ -2040,6 +2090,7 @@ function setStudioSlide(i) {
 
 function studioOpenEditor() {
   STUDIO._saved = false;
+  STUDIO._framing = false;
   renderStudioEdit();
   renderStudioSlides();
   renderStudioPhotoBar();
@@ -2085,6 +2136,7 @@ function studioDispose() {
   clearTimeout(STUDIO._prime);
   STUDIO._share = null;
   STUDIO._saved = false;
+  STUDIO._framing = false;
   if (STUDIO._exp) { STUDIO._exp.width = STUDIO._exp.height = 0; STUDIO._exp = null; }
   const c = document.getElementById('studio-canvas');
   if (c) { c.width = c.height = 0; }
@@ -2325,6 +2377,10 @@ function renderStudioPhotoBar() {
       <button class="studio-photo-btn primary" data-action="clickTarget" data-target="studio-file">
         📷 Agregar foto del producto
       </button>`;
+    // Sin foto no hay botón que poner al día, pero SÍ hay que limpiar la clase
+    // que bloquea los gestos: si se llega aquí desde una lámina que estaba en
+    // modo encuadre, el bloqueo sobreviviría a la foto que lo justificaba.
+    applyStudioFraming();
     return;
   }
 
@@ -2333,13 +2389,20 @@ function renderStudioPhotoBar() {
       <button class="studio-photo-btn" data-action="clickTarget" data-target="studio-file">📷 Cambiar</button>
       <button class="studio-photo-btn" data-action="studioCenterPhoto">↺ Centrar</button>
     </div>
+    <button type="button" class="studio-photo-btn studio-frame-btn" id="studio-frame-btn"
+            data-action="toggleStudioFraming"
+            aria-pressed="false" aria-describedby="studio-frame-hint">✥ Mover la foto</button>
     <div class="studio-zoom-row">
       <span class="studio-zoom-lbl">🔍</span>
       <input type="range" id="studio-zoom" min="1" max="${STUDIO_ZOOM_MAX}" step="0.01"
              value="${slide.frame.zoom}" data-input="setStudioZoom"
              aria-label="Acercar la foto">
     </div>
-    <div class="studio-hint">Arrastra la foto sobre la vista previa para encuadrarla</div>`;
+    <div class="studio-hint" id="studio-frame-hint" aria-live="polite"></div>`;
+
+  // Una sola fuente de verdad para el texto y el estado del botón: la barra
+  // nace neutra y applyStudioFraming la pone al día.
+  applyStudioFraming();
 }
 
 function renderStudioFontNote() {
@@ -2652,6 +2715,7 @@ Object.assign(ACCIONES, {
   setStudioAccent:      el => setStudioAccent(el.dataset.hex),
   setStudioTemplate:    el => setStudioTemplate(el.dataset.tpl),
   studioCenterPhoto:    () => studioCenterPhoto(),
+  toggleStudioFraming:  () => toggleStudioFraming(),
   studioShareActive:    () => studioShareActive(),
   studioDownloadActive: () => studioDownloadActive(),
   studioShareAll:       () => studioShareAll(),
