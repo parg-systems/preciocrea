@@ -83,15 +83,18 @@ final de los resultados, se generan imágenes listas para Instagram.
 
 - **Historia** — 1080×1920, cuatro estilos.
 - **Catálogo** — carrusel 1080×1350 (4:5): portada + una lámina por producto, hasta 9.
+- **Publicación libre** — una historia sin producto asociado, para avisos ("pedidos abiertos", "esta semana no hay despachos"). Título, descripción y un texto destacado que ocupa el lugar del precio. Solo pide tener la marca configurada.
 - La foto se toma del teléfono, se corrige su orientación EXIF y se encuadra arrastrando sobre la vista previa.
 - El nombre, la **descripción** y el icono del producto viajan a la publicación, y se pueden retocar ahí sin alterar el producto guardado.
 - El precio puede mostrarse con IVA incluido, como "Consulta por precio" u ocultarse.
-- El **color** arranca en el de la marca pero se puede cambiar solo para esa publicación.
+- El **color de fondo**, el **color de la letra** y el **tamaño** del nombre y de la descripción arrancan en el de la marca y se cambian solo para esa publicación.
 - Si hay **logo**, sustituye al nombre escrito de la marca.
 
 > **Las fotos de producto no se guardan.** Viven solo en memoria mientras se edita la publicación: una foto en `localStorage` consumiría la cuota que necesitan los productos guardados. El **logo sí se guarda** (reducido a 360 px, unos 40-90 KB) porque es un dato de marca que se configura una vez. Todo el perfil de marca viaja dentro del respaldo `.json`.
 
-Las plantillas viven en `STUDIO_TEMPLATES` (`js/studio.js`) como datos puros, con coordenadas normalizadas a `[0,1]`. Agregar un estilo nuevo es añadir un objeto a ese array; no hay que tocar el motor de render.
+> **Zona segura de las historias.** Instagram superpone su interfaz sobre la story —el cuadro "Enviar mensaje" abajo— y en teléfonos más largos que 9:16 recorta la imagen por los dos extremos. Por eso todo el pie de las historias (logo, marca, @ y crédito) termina en `y ≤ 0.87`: los 250 px libres que recomienda Instagram. Lo verifica un test, porque es un fallo que solo se ve publicando de verdad. El catálogo no tiene esta restricción: es un post de feed, sin nada encima.
+
+Las plantillas viven en `STUDIO_TEMPLATES` (`js/studio.js`) como datos puros, con coordenadas normalizadas a `[0,1]`. Agregar un estilo nuevo es añadir un objeto a ese array; no hay que tocar el motor de render. Los ajustes de tipografía de cada publicación se aplican en `studioStyleTemplate()`, que devuelve una plantilla derivada: el preview, las miniaturas y el archivo exportado la piden por la misma puerta, así que no pueden separarse.
 
 ## Cómo usar
 

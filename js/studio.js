@@ -543,6 +543,15 @@ function studioApplyImportedBrand(incoming) {
 // Los slots NUNCA llevan un color hexadecimal: llevan el nombre de un token
 // que studioPalette() deriva del acento de la creadora. Así cualquier color
 // funciona sin dejar texto ilegible.
+//
+// ZONA SEGURA DE LAS HISTORIAS. Instagram superpone su propia interfaz sobre la
+// story: el nombre de quien publica arriba y el cuadro "Enviar mensaje" abajo,
+// que arranca cerca del 89% del alto. Además, en teléfonos más largos que 9:16
+// la imagen se recorta arriba y abajo para llenar la pantalla. Por eso hay que
+// dejar libres los 250 px de cada extremo (250/1920 = 0.13): todo el pie —logo,
+// nombre de marca, @ y crédito— termina en y ≤ 0.87. Lo verifica un test.
+// El catálogo NO tiene esta restricción: es un post de feed, sin nada encima.
+const STUDIO_SAFE_BOTTOM = 0.87;
 
 const STUDIO_FORMATS = {
   historia: { id:'historia', label:'Historia',  emoji:'📱', w:1080, h:1920, multi:false,
@@ -568,34 +577,34 @@ const STUDIO_TEMPLATES = [
     ],
     slots: [
       { kind:'photo', role:'photo',
-        x:0.083, y:0.100, w:0.834, h:0.445, shape:'rect', radius:0.055 },
+        x:0.083, y:0.060, w:0.834, h:0.369, shape:'rect', radius:0.055 },
 
       { kind:'shape', role:'panel',
-        x:0.083, y:0.600, w:0.834, h:0.272, shape:'rect', radius:0.055, color:'card' },
+        x:0.083, y:0.483, w:0.834, h:0.272, shape:'rect', radius:0.055, color:'card' },
 
       // Círculo con el emoji, montado sobre el borde superior de la tarjeta.
       // Si la creadora quitó el icono, el círculo desaparece con él.
       { kind:'shape', role:'emojibg', hideWith:'emoji',
-        x:0.417, y:0.552, w:0.166, h:0.0935, shape:'circle', color:'accent' },
+        x:0.417, y:0.4363, w:0.166, h:0.0935, shape:'circle', color:'accent' },
       { kind:'text', role:'emoji',
-        x:0.417, y:0.552, w:0.166, h:0.0935,
+        x:0.417, y:0.4363, w:0.166, h:0.0935,
         size:0.080, minSize:0.080, weight:400, family:'body',
         align:'center', valign:'middle', color:'onAccent', maxLines:1 },
 
       { kind:'text', role:'name',
-        x:0.139, y:0.652, w:0.722, h:0.076,
+        x:0.139, y:0.535, w:0.722, h:0.076,
         size:0.062, minSize:0.036, weight:900, family:'display',
         align:'center', valign:'middle', color:'ink', lineHeight:1.14, maxLines:2,
         absorb:['desc','price'] },   // se queda con el espacio de lo que falte
 
       { kind:'text', role:'desc',
-        x:0.111, y:0.735, w:0.778, h:0.050,
+        x:0.111, y:0.618, w:0.778, h:0.050,
         size:0.031, minSize:0.024, weight:600, family:'body',
         align:'center', valign:'middle', color:'muted', lineHeight:1.35, maxLines:2 },
 
       // El precio va sobre la tarjeta blanca: accentInk, no accent crudo.
       { kind:'text', role:'price',
-        x:0.139, y:0.794, w:0.722, h:0.066,
+        x:0.139, y:0.677, w:0.722, h:0.066,
         size:0.072, minSize:0.038, weight:900, family:'display',
         align:'center', valign:'middle', color:'accentInk', maxLines:1 },
 
@@ -603,20 +612,20 @@ const STUDIO_TEMPLATES = [
       // el token tiene que ser el del fondo REAL de esa zona, no el del acento.
       // Con logo cargado se dibuja el logo; si no, el nombre escrito.
       { kind:'logo', role:'logo',
-        x:0.2900, y:0.8809, w:0.4200, h:0.0483 },
+        x:0.2900, y:0.7640, w:0.4200, h:0.0483 },
       { kind:'text', role:'brand', hideWhen:'logo',
-        x:0.111, y:0.884, w:0.778, h:0.042,
+        x:0.111, y:0.767, w:0.778, h:0.042,
         size:0.044, minSize:0.028, weight:700, family:'display',
         align:'center', valign:'middle', color:'onAccentDark', maxLines:1, shadow:true },
 
       { kind:'text', role:'handle',
-        x:0.111, y:0.929, w:0.778, h:0.030,
+        x:0.111, y:0.814, w:0.778, h:0.030,
         size:0.030, minSize:0.022, weight:700, family:'body',
         align:'center', valign:'middle', color:'onAccentDark', maxLines:1,
         tracking:0.004, shadow:true },
 
       { kind:'text', role:'credit',
-        x:0.111, y:0.964, w:0.778, h:0.022,
+        x:0.111, y:0.848, w:0.778, h:0.022,
         size:0.019, minSize:0.019, weight:600, family:'body',
         align:'center', valign:'middle', color:'onAccentDark', maxLines:1, opacity:0.6 }
     ]
@@ -628,45 +637,45 @@ const STUDIO_TEMPLATES = [
     name: 'Bloque',
     desc: 'Foto a sangre y bloque de color con el precio',
     bg: { type:'bands', bands:[
-      { from:0,    to:0.58, color:'accentSoft' },
-      { from:0.58, to:1,    color:'accentDark' }
+      { from:0,     to:0.464, color:'accentSoft' },
+      { from:0.464, to:1,     color:'accentDark' }
     ]},
     slots: [
-      { kind:'photo', role:'photo', x:0, y:0, w:1, h:0.60, shape:'rect', radius:0 },
+      { kind:'photo', role:'photo', x:0, y:0, w:1, h:0.484, shape:'rect', radius:0 },
 
       { kind:'text', role:'name',
-        x:0.083, y:0.622, w:0.834, h:0.078,
+        x:0.083, y:0.506, w:0.834, h:0.078,
         size:0.066, minSize:0.034, weight:900, family:'display',
         align:'center', valign:'middle', color:'onAccentDark', lineHeight:1.14, maxLines:2,
         absorb:['desc','price'] },
 
       { kind:'text', role:'desc',
-        x:0.100, y:0.708, w:0.800, h:0.048,
+        x:0.100, y:0.592, w:0.800, h:0.048,
         size:0.030, minSize:0.023, weight:600, family:'body',
         align:'center', valign:'middle', color:'onAccentDark', lineHeight:1.35, maxLines:2,
         opacity:0.88 },
 
       // El precio va dentro de una píldora blanca: destaca y garantiza contraste.
       { kind:'shape', role:'pricepill', hideWith:'price',
-        x:0.24, y:0.770, w:0.52, h:0.074, shape:'rect', radius:0.037, color:'card' },
+        x:0.24, y:0.654, w:0.52, h:0.074, shape:'rect', radius:0.037, color:'card' },
       { kind:'text', role:'price',
-        x:0.26, y:0.777, w:0.48, h:0.060,
+        x:0.26, y:0.661, w:0.48, h:0.060,
         size:0.055, minSize:0.030, weight:900, family:'display',
         align:'center', valign:'middle', color:'accentInk', maxLines:1 },
 
       // Con logo cargado se dibuja el logo; si no, el nombre escrito.
       { kind:'logo', role:'logo',
-        x:0.2900, y:0.8750, w:0.4200, h:0.0460 },
+        x:0.2900, y:0.7590, w:0.4200, h:0.0460 },
       { kind:'text', role:'brand', hideWhen:'logo',
-        x:0.111, y:0.878, w:0.778, h:0.040,
+        x:0.111, y:0.762, w:0.778, h:0.040,
         size:0.042, minSize:0.026, weight:700, family:'display',
         align:'center', valign:'middle', color:'onAccentDark', maxLines:1 },
       { kind:'text', role:'handle',
-        x:0.111, y:0.930, w:0.778, h:0.028,
+        x:0.111, y:0.814, w:0.778, h:0.028,
         size:0.029, minSize:0.022, weight:700, family:'body',
         align:'center', valign:'middle', color:'onAccentDark', maxLines:1, tracking:0.004 },
       { kind:'text', role:'credit',
-        x:0.111, y:0.964, w:0.778, h:0.022,
+        x:0.111, y:0.848, w:0.778, h:0.022,
         size:0.019, minSize:0.019, weight:600, family:'body',
         align:'center', valign:'middle', color:'onAccentDark', maxLines:1, opacity:0.6 }
     ]
@@ -687,41 +696,41 @@ const STUDIO_TEMPLATES = [
       { shape:'circle', x:-0.22, y:0.72, w:0.55, h:0.31, color:'accent', opacity:0.13 }
     ],
     slots: [
-      // Diámetro 0.70·W = 756 px, que en alto es 756/1920 = 0.394·H.
-      { kind:'photo', role:'photo', x:0.15, y:0.145, w:0.70, h:0.394, shape:'circle' },
+      // Diámetro 0.60·W = 648 px, que en alto es 648/1920 = 0.3375·H.
+      { kind:'photo', role:'photo', x:0.20, y:0.115, w:0.60, h:0.3375, shape:'circle' },
 
       { kind:'text', role:'name',
-        x:0.111, y:0.578, w:0.778, h:0.082,
+        x:0.111, y:0.492, w:0.778, h:0.082,
         size:0.070, minSize:0.036, weight:900, family:'display',
         align:'center', valign:'middle', color:'ink', lineHeight:1.14, maxLines:2,
         absorb:['desc','price'] },
 
       { kind:'text', role:'desc',
-        x:0.111, y:0.668, w:0.778, h:0.048,
+        x:0.111, y:0.582, w:0.778, h:0.048,
         size:0.031, minSize:0.024, weight:600, family:'body',
         align:'center', valign:'middle', color:'muted', lineHeight:1.35, maxLines:2 },
 
       { kind:'shape', role:'rule', hideWith:'price',
-        x:0.44, y:0.734, w:0.12, h:0.0035, shape:'rect', radius:0.002, color:'accent' },
+        x:0.44, y:0.648, w:0.12, h:0.0035, shape:'rect', radius:0.002, color:'accent' },
 
       { kind:'text', role:'price',
-        x:0.139, y:0.760, w:0.722, h:0.066,
+        x:0.139, y:0.674, w:0.722, h:0.066,
         size:0.070, minSize:0.036, weight:900, family:'display',
         align:'center', valign:'middle', color:'accentInk', maxLines:1 },
 
       // Con logo cargado se dibuja el logo; si no, el nombre escrito.
       { kind:'logo', role:'logo',
-        x:0.2900, y:0.8709, w:0.4200, h:0.0483 },
+        x:0.2900, y:0.7620, w:0.4200, h:0.0483 },
       { kind:'text', role:'brand', hideWhen:'logo',
-        x:0.111, y:0.874, w:0.778, h:0.042,
+        x:0.111, y:0.765, w:0.778, h:0.042,
         size:0.043, minSize:0.026, weight:700, family:'display',
         align:'center', valign:'middle', color:'onAccentSoft', maxLines:1 },
       { kind:'text', role:'handle',
-        x:0.111, y:0.918, w:0.778, h:0.028,
+        x:0.111, y:0.812, w:0.778, h:0.028,
         size:0.029, minSize:0.022, weight:700, family:'body',
         align:'center', valign:'middle', color:'accentInkSoft', maxLines:1, tracking:0.004 },
       { kind:'text', role:'credit',
-        x:0.111, y:0.955, w:0.778, h:0.022,
+        x:0.111, y:0.848, w:0.778, h:0.022,
         size:0.019, minSize:0.019, weight:600, family:'body',
         align:'center', valign:'middle', color:'onAccentSoft', maxLines:1, opacity:0.5 }
     ]
@@ -739,43 +748,45 @@ const STUDIO_TEMPLATES = [
       { kind:'photo', role:'photo', x:0, y:0, w:1, h:1, shape:'rect', radius:0 },
 
       // Velo degradado: sin él, el texto blanco es ilegible sobre fotos claras.
-      { kind:'shape', role:'scrim', x:0, y:0.46, w:1, h:0.54, shape:'rect', radius:0,
+      // Empieza más arriba que el bloque de texto para que este caiga sobre la
+      // parte ya oscurecida, no sobre el arranque transparente.
+      { kind:'shape', role:'scrim', x:0, y:0.36, w:1, h:0.64, shape:'rect', radius:0,
         gradient:[
           { at:0,    color:'rgba(20,16,26,0)'    },
-          { at:0.45, color:'rgba(20,16,26,0.55)' },
+          { at:0.35, color:'rgba(20,16,26,0.55)' },
           { at:1,    color:'rgba(20,16,26,0.90)' }
         ]},
 
       { kind:'text', role:'name',
-        x:0.083, y:0.668, w:0.834, h:0.084,
+        x:0.083, y:0.549, w:0.834, h:0.084,
         size:0.072, minSize:0.036, weight:900, family:'display',
         align:'center', valign:'middle', color:'white', lineHeight:1.14, maxLines:2,
         shadow:true, absorb:['desc','price'] },
 
       { kind:'text', role:'desc',
-        x:0.100, y:0.760, w:0.800, h:0.046,
+        x:0.100, y:0.641, w:0.800, h:0.046,
         size:0.030, minSize:0.023, weight:600, family:'body',
         align:'center', valign:'middle', color:'white', lineHeight:1.35, maxLines:2,
         shadow:true, opacity:0.92 },
 
       { kind:'text', role:'price',
-        x:0.139, y:0.818, w:0.722, h:0.066,
+        x:0.139, y:0.699, w:0.722, h:0.066,
         size:0.074, minSize:0.038, weight:900, family:'display',
         align:'center', valign:'middle', color:'white', maxLines:1, shadow:true },
 
       // Con logo cargado se dibuja el logo; si no, el nombre escrito.
       { kind:'logo', role:'logo',
-        x:0.2900, y:0.8920, w:0.4200, h:0.0460 },
+        x:0.2900, y:0.7730, w:0.4200, h:0.0460 },
       { kind:'text', role:'brand', hideWhen:'logo',
-        x:0.111, y:0.895, w:0.778, h:0.040,
+        x:0.111, y:0.776, w:0.778, h:0.040,
         size:0.041, minSize:0.026, weight:700, family:'display',
         align:'center', valign:'middle', color:'white', maxLines:1, shadow:true },
       { kind:'text', role:'handle',
-        x:0.111, y:0.936, w:0.778, h:0.028,
+        x:0.111, y:0.818, w:0.778, h:0.028,
         size:0.029, minSize:0.022, weight:700, family:'body',
         align:'center', valign:'middle', color:'white', maxLines:1, tracking:0.004, opacity:0.9 },
       { kind:'text', role:'credit',
-        x:0.111, y:0.969, w:0.778, h:0.020,
+        x:0.111, y:0.850, w:0.778, h:0.020,
         size:0.018, minSize:0.018, weight:600, family:'body',
         align:'center', valign:'middle', color:'white', maxLines:1, opacity:0.5 }
     ]
@@ -966,10 +977,74 @@ function studioTemplatesFor(format) {
 // estética se mantiene sin que la creadora tenga que elegir dos veces.
 function studioSlideTemplate(piece, slide) {
   const base = studioTemplate(piece.templateId);
-  if (!base.pairId) return base;
-  const quiero = (slide && slide.kind === 'cover') ? 'cover' : 'item';
-  if (base.role === quiero) return base;
-  return STUDIO_TEMPLATES.find(t => t.pairId === base.pairId && t.role === quiero) || base;
+  let tpl = base;
+  if (base.pairId) {
+    const quiero = (slide && slide.kind === 'cover') ? 'cover' : 'item';
+    if (base.role !== quiero) {
+      tpl = STUDIO_TEMPLATES.find(t => t.pairId === base.pairId && t.role === quiero) || base;
+    }
+  }
+  return studioStyleTemplate(tpl, piece);
+}
+
+// Tamaño de los textos, a elección de la creadora. Son multiplicadores del
+// `size` que trae la plantilla, no tamaños absolutos: así el mismo ajuste vale
+// para los cuatro estilos, que tienen tipografías de distinto cuerpo.
+//
+// Ojo: studioFitText sigue reduciendo lo que no quepa en su caja, así que esto
+// fija el techo, no el resultado. "Grande" se luce en textos cortos y se
+// autolimita en los largos; es preferible a un texto que se sale del diseño.
+const STUDIO_TEXT_SIZES  = ['chico', 'medio', 'grande'];
+const STUDIO_TEXT_SCALES = { chico: 0.82, medio: 1, grande: 1.25 };
+const STUDIO_TEXT_SIZE_LABELS = { chico: 'Pequeño', medio: 'Mediano', grande: 'Grande' };
+
+// Qué control manda sobre cada rol: el titular (nombre del producto o título de
+// la portada) y el texto secundario (descripción o bajada).
+const STUDIO_TEXT_GROUP = { name:'name', headline:'name', desc:'desc', subhead:'desc' };
+
+// Aplica a la plantilla lo que la creadora eligió PARA ESTA PIEZA: el tamaño de
+// los textos y, si fijó uno, el color de la letra. Devuelve una plantilla
+// derivada; las de STUDIO_TEMPLATES no se mutan nunca.
+//
+// Va enchufado en studioSlideTemplate, que es el único punto por el que pasan
+// las tres salidas —preview, miniaturas de estilo y archivo exportado—, así que
+// lo que se ve en pantalla y lo que se descarga no pueden separarse.
+function studioStyleTemplate(base, piece) {
+  if (!piece) return base;
+
+  const ts    = piece.textSize || null;
+  const color = piece.textColor || null;
+  const factor = role => {
+    const grupo = role && STUDIO_TEXT_GROUP[role];
+    if (!grupo || !ts) return 1;
+    return STUDIO_TEXT_SCALES[ts[grupo]] || 1;
+  };
+
+  // El caso normal es "nada que cambiar", y este código corre en cada frame del
+  // preview: si no hay ajustes, devolvemos la plantilla tal cual y nos ahorramos
+  // el clon entero.
+  const hayEscala = base.slots.some(s => s.kind === 'text' && factor(s.role) !== 1);
+  if (!color && !hayEscala) return base;
+
+  const pal = color ? studioPalette(piece.accent) : null;
+
+  return { ...base, slots: base.slots.map(slot => {
+    if (slot.kind !== 'text') return slot;
+    const k = factor(slot.role);
+    // El emoji queda fuera del color de letra: lo dibuja la fuente de emoji del
+    // sistema, y forzarle un fillStyle lo deja plano en unos aparatos y a color
+    // en otros. Un icono monocromo por accidente no es lo que nadie pidió.
+    const pintar = !!color && slot.role !== 'emoji';
+    if (k === 1 && !pintar) return slot;
+
+    const out = { ...slot };
+    if (k !== 1) {
+      out.size = slot.size * k;
+      if (slot.minSize) out.minSize = slot.minSize * k;
+    }
+    if (pintar) out.color = studioReadableText(color, studioSlotBg(slot, pal));
+    return out;
+  })};
 }
 
 // ===================================================
@@ -1121,6 +1196,53 @@ function studioColor(token, pal) {
   if (typeof token !== 'string') return pal.ink;
   if (token.charAt(0) === '#' || /^rgba?\(/i.test(token)) return token;
   return pal[token] || pal.ink;
+}
+
+// El color de letra que elige la creadora, corregido lo justo para que se lea
+// sobre su fondo. studioReadableInk solo sabe oscurecer, porque nació para
+// poner el acento sobre la tarjeta blanca; este mueve la luminosidad hacia el
+// lado que gana contraste —aclara sobre fondos oscuros, oscurece sobre fondos
+// claros— conservando el matiz elegido. Si ni llevándolo al extremo llega al
+// mínimo, cae al blanco o a la tinta, el que mejor se lea sobre ese fondo.
+//
+// Esto es coherente con la regla de la casa: el color de la creadora se respeta
+// y se ajusta, nunca se rechaza.
+function studioReadableText(hex, bg, min = 4.5) {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(hex || '')) return studioOnColor(bg);
+  if (studioContrast(hex, bg) >= min) return hex.toUpperCase();
+
+  // El extremo que más contrasta con el fondo marca hacia dónde hay recorrido.
+  const dir = studioOnColor(bg) === '#FFFFFF' ? +1 : -1;
+  const { h, s } = studioHexToHsl(hex);
+  let l = studioHexToHsl(hex).l;
+  for (let i = 0; i < 40; i++) {
+    l += dir * 0.025;
+    if (l <= 0 || l >= 1) break;
+    const out = studioHslToHex(h, s, l);
+    if (studioContrast(out, bg) >= min) return out;
+  }
+  return studioOnColor(bg);
+}
+
+// Cada slot de texto declara el token de su COLOR, y ese token ya dice sobre qué
+// fondo fue diseñado: onAccentDark solo se usa donde el fondo es accentDark,
+// accentInk solo sobre la tarjeta blanca, white solo sobre foto con velo. En vez
+// de repetir el fondo en las cuarenta declaraciones de slot —y arriesgar que las
+// dos se desincronicen— lo derivamos de esa correspondencia.
+const STUDIO_SLOT_BG = {
+  ink:           'card',
+  muted:         'card',
+  accentInk:     'card',
+  accentInkSoft: 'accentSoft',
+  onAccentSoft:  'accentSoft',
+  onAccent:      'accent',
+  onAccentDark:  'accentDark',
+  card:          'accentDark',   // el precio blanco sobre el color pleno del catálogo
+  white:         '#241C2E'       // texto sobre foto: el fondo real es el velo oscuro
+};
+
+function studioSlotBg(slot, pal) {
+  return studioColor(STUDIO_SLOT_BG[slot.color] || 'card', pal);
 }
 
 // ===================================================
@@ -1812,7 +1934,9 @@ function studioSlotText(role, slide) {
     case 'logo': return b.logo || '';
     case 'name':     return slide.name || '';
     case 'desc':     return slide.desc || '';
-    case 'price':    return slide.priceText || '';
+    // En una publicación libre no hay precio calculado: ese espacio lo ocupa
+    // el texto destacado que escribe la creadora.
+    case 'price':    return (slide.kind === 'libre' ? slide.highlight : slide.priceText) || '';
     // Vacío de verdad si la creadora quitó el icono: los slots que dependen de
     // él (el círculo de fondo) desaparecen con hideWith.
     case 'emoji':    return slide.emoji || '';
@@ -1858,6 +1982,38 @@ function openStudio(format, productId) {
   studioOpenEditor();
 }
 
+// Publicación libre: un anuncio que no cuelga de ningún producto calculado
+// ("pedidos abiertos", "nuevos horarios", "esta semana no hay despachos").
+// Solo pide marca; no hace falta tener nada guardado en la calculadora.
+function openStudioLibre(tplId) {
+  if (!studioHasBrand()) {
+    STUDIO._after = () => openStudioLibre(tplId);
+    openBrand();
+    toast('🎨 Primero configura tu marca');
+    return;
+  }
+  STUDIO._pickTpl = tplId || null;
+  STUDIO.piece = studioNewPiece('historia', [studioFreeSlide()]);
+  studioOpenEditor();
+}
+
+// Misma forma que una lámina de producto, pero sin productId ni precio: el
+// lugar del precio lo ocupa `highlight`, un texto libre que la creadora escribe.
+// Si lo deja vacío, el título se queda con ese espacio (mecanismo `absorb`).
+function studioFreeSlide() {
+  return {
+    kind: 'libre',
+    name: '',
+    desc: '',
+    highlight: '',
+    emoji: '',
+    photo: null,
+    frame: { zoom: 1, ox: 0, oy: 0 }
+  };
+}
+
+const MAX_HIGHLIGHT_LEN = 24;
+
 function studioProductSlide(product, priceMode) {
   return {
     kind: 'product',
@@ -1885,6 +2041,10 @@ function studioNewPiece(format, slides) {
     templateId: elegido,
     priceMode: studioBrandPersisted().priceMode,
     accent: studioBrandPersisted().accent,   // punto de partida, editable aquí
+    // Ajustes de tipografía de ESTA publicación. Como el acento, viven solo
+    // mientras dura la edición: no se guardan en el perfil de marca.
+    textColor: null,                          // null = automático, según el fondo
+    textSize: { name: 'medio', desc: 'medio' },
     active: 0,
     slides
   };
@@ -2085,6 +2245,8 @@ function setStudioSlide(i) {
   renderStudioSlides();
   renderStudioPhotoBar();
   renderStudioFields();
+  // Las etiquetas del tamaño cambian de nombre entre la portada y las láminas.
+  renderStudioType();
   studioRequestPreview();
 }
 
@@ -2095,6 +2257,7 @@ function studioOpenEditor() {
   renderStudioSlides();
   renderStudioPhotoBar();
   renderStudioAccent();
+  renderStudioType();
   renderStudioTemplates();
   showView('view-studio-edit');
   // El canvas mide 0 px mientras la vista está oculta: hay que esperar al
@@ -2185,6 +2348,8 @@ function renderStudioEdit() {
 
     <div class="studio-controls" id="studio-accent"></div>
 
+    <div class="studio-controls" id="studio-type"></div>
+
     <div class="studio-controls" id="studio-fields"></div>
 
     <div class="studio-actions">
@@ -2230,13 +2395,35 @@ function studioActionButtons(p, multi) {
 }
 
 // Los campos editables dependen del tipo de diapositiva: la portada de un
-// catálogo tiene título y bajada; una lámina de producto, nombre y precio.
+// catálogo tiene título y bajada; una lámina de producto, nombre y precio; una
+// publicación libre, título, descripción y un destacado que escribe la creadora.
 function renderStudioFields() {
   const box = document.getElementById('studio-fields');
   if (!box) return;
   const p = STUDIO.piece;
   const slide = studioActiveSlide();
   if (!slide) return;
+
+  if (slide.kind === 'libre') {
+    box.innerHTML = `
+      <label class="field-label" for="studio-name">Título</label>
+      <input class="field-input" type="text" id="studio-name" maxlength="${MAX_NAME_LEN}"
+             placeholder="Pedidos abiertos"
+             value="${esc(slide.name || '')}" data-input="setStudioName">
+
+      <label class="field-label u-mt16" for="studio-desc">Descripción</label>
+      <textarea class="field-input field-textarea" id="studio-desc" rows="2" maxlength="${MAX_DESC_LEN}"
+                placeholder="Una frase corta que acompañe"
+                data-input="setStudioField" data-field="desc" data-max="${MAX_DESC_LEN}">${esc(slide.desc || '')}</textarea>
+
+      <label class="field-label u-mt16" for="studio-highlight">Texto destacado (opcional)</label>
+      <input class="field-input" type="text" id="studio-highlight" maxlength="${MAX_HIGHLIGHT_LEN}"
+             placeholder="Hasta el viernes"
+             value="${esc(slide.highlight || '')}"
+             data-input="setStudioField" data-field="highlight" data-max="${MAX_HIGHLIGHT_LEN}">
+      <div class="field-hint">Va donde iría el precio, en grande. Si lo dejas vacío, el título se queda con ese espacio.</div>`;
+    return;
+  }
 
   if (slide.kind === 'cover') {
     box.innerHTML = `
@@ -2312,6 +2499,9 @@ function setStudioAccent(hex) {
   if (!/^#[0-9A-Fa-f]{6}$/.test(hex) || !STUDIO.piece) return;
   STUDIO.piece.accent = hex.toUpperCase();
   renderStudioAccent();
+  // El atajo "color de tu marca" del bloque de tipografía sale del acento:
+  // si el acento cambia, ese círculo tiene que cambiar con él.
+  renderStudioType();
   studioRequestPreview();
 }
 
@@ -2319,6 +2509,90 @@ function setStudioField(key, value, max) {
   const slide = studioActiveSlide();
   if (!slide) return;
   slide[key] = String(value).slice(0, max);
+  studioRequestPreview();
+}
+
+// Tipografía de la publicación: color de la letra y tamaño de los dos bloques
+// de texto. Va en su propio bloque, separado del color de fondo: uno decide el
+// aire de la pieza y este decide cómo se lee lo que dice.
+function renderStudioType() {
+  const box = document.getElementById('studio-type');
+  if (!box) return;
+  const p = STUDIO.piece;
+  const slide = studioActiveSlide();
+  if (!p || !slide) return;
+
+  const actual = p.textColor;
+  const igual  = hex => !!actual && actual.toUpperCase() === hex.toUpperCase();
+
+  // Tres atajos que cubren casi todo: el blanco, la tinta de la app y el propio
+  // color de la creadora ya llevado a un tono que se lee sobre fondo claro.
+  const opciones = [
+    { hex: '#FFFFFF',  label: 'letra blanca' },
+    { hex: STUDIO_INK, label: 'letra oscura' },
+    { hex: studioPalette(studioAccent()).accentInk, label: 'letra del color de tu marca' }
+  ];
+
+  const swatches = opciones.map(o => `
+    <button type="button" class="brand-swatch${igual(o.hex) ? ' sel' : ''}"
+            data-hex="${o.hex}" data-action="setStudioTextColor"
+            aria-label="Poner ${o.label}"></button>`).join('');
+
+  // En una portada de catálogo los dos textos se llaman distinto, pero son los
+  // mismos dos controles: titular y texto secundario.
+  const cover = slide.kind === 'cover';
+  const filas = [
+    { key: 'name', label: cover ? '📝 Tamaño del título'  : '📝 Tamaño del nombre' },
+    { key: 'desc', label: cover ? '💬 Tamaño de la bajada' : '💬 Tamaño de la descripción' }
+  ].map(f => `
+    <div class="field-label u-mt16">${f.label}</div>
+    <div class="margin-btns studio-size-chips">
+      ${STUDIO_TEXT_SIZES.map(s => `
+        <button type="button" class="m-btn studio-size-chip${(p.textSize[f.key] || 'medio') === s ? ' active' : ''}"
+                data-slot="${f.key}" data-size="${s}" data-action="setStudioTextSize">
+          ${esc(STUDIO_TEXT_SIZE_LABELS[s])}
+        </button>`).join('')}
+    </div>`).join('');
+
+  box.innerHTML = `
+    <div class="field-label">🎨 Color de la letra</div>
+    <div class="studio-text-row">
+      <button type="button" class="m-btn studio-auto-chip${actual ? '' : ' active'}"
+              data-action="setStudioTextColor" data-hex="">Automático</button>
+      <div class="studio-text-swatches">${swatches}</div>
+      <label class="brand-custom-color">
+        <input type="color" id="studio-text-color" value="${esc(actual || STUDIO_INK)}"
+               data-input="studioTextColorLibre">
+        <span>Otro</span>
+      </label>
+    </div>
+    <div class="field-hint">
+      ${actual
+        ? 'Si tu color no se leyera sobre algún fondo, lo aclaramos u oscurecemos apenas para que se vea.'
+        : 'Automático elige el color que mejor se lee sobre cada fondo.'}
+    </div>
+    ${filas}`;
+
+  studioPintarSwatches(box);
+}
+
+// hex vacío = volver al color automático de la plantilla.
+function setStudioTextColor(hex) {
+  if (!STUDIO.piece) return;
+  if (hex && !/^#[0-9A-Fa-f]{6}$/.test(hex)) return;
+  STUDIO.piece.textColor = hex ? hex.toUpperCase() : null;
+  renderStudioType();
+  studioRequestPreview();
+}
+
+function setStudioTextSize(grupo, size) {
+  if (!STUDIO.piece) return;
+  if (grupo !== 'name' && grupo !== 'desc') return;
+  if (!STUDIO_TEXT_SIZES.includes(size)) return;
+  STUDIO.piece.textSize[grupo] = size;
+  document.querySelectorAll(`.studio-size-chip[data-slot="${grupo}"]`).forEach(c => {
+    c.classList.toggle('active', c.dataset.size === size);
+  });
   studioRequestPreview();
 }
 
@@ -2425,6 +2699,9 @@ function setStudioPriceMode(mode) {
   if (!STUDIO_PRICE_MODES.includes(mode)) return;
   STUDIO.piece.priceMode = mode;
   STUDIO.piece.slides.forEach(s => {
+    // Solo las láminas de producto tienen precio. Una portada de catálogo o una
+    // publicación libre no, y recalcularlas aquí borraría su texto destacado.
+    if (s.kind !== 'product') return;
     const product = S.products.find(p => p.id === s.productId);
     s.priceText = studioPriceText(product, mode);
   });
@@ -2597,7 +2874,9 @@ function studioShareText() {
   const slide = studioActiveSlide();
   const partes = [];
   if (slide && slide.kind !== 'cover' && slide.name) partes.push(slide.name);
-  if (slide && slide.priceText) partes.push(slide.priceText);
+  // studioSlotText y no slide.priceText: en una publicación libre ese lugar lo
+  // ocupa el texto destacado.
+  if (slide && studioSlotText('price', slide)) partes.push(studioSlotText('price', slide));
   if (b.handle) partes.push('@' + b.handle);
   return partes.join(' · ');
 }
@@ -2697,6 +2976,7 @@ async function studioDownloadAll() {
 Object.assign(ACCIONES, {
   // Hub y selector
   openStudioPicker:    el => openStudioPicker(el.dataset.tpl || undefined),
+  openStudioLibre:     el => openStudioLibre(el.dataset.tpl || undefined),
   openCatalogo:        () => openCatalogo(),
   toggleStudioPick:    el => toggleStudioPick(Number(el.dataset.id)),
   selectAllStudioPick: () => selectAllStudioPick(),
@@ -2713,6 +2993,8 @@ Object.assign(ACCIONES, {
   closeStudio:          () => closeStudio(),
   setStudioPriceMode:   el => setStudioPriceMode(el.dataset.mode),
   setStudioAccent:      el => setStudioAccent(el.dataset.hex),
+  setStudioTextColor:   el => setStudioTextColor(el.dataset.hex),
+  setStudioTextSize:    el => setStudioTextSize(el.dataset.slot, el.dataset.size),
   setStudioTemplate:    el => setStudioTemplate(el.dataset.tpl),
   studioCenterPhoto:    () => studioCenterPhoto(),
   toggleStudioFraming:  () => toggleStudioFraming(),
@@ -2727,6 +3009,7 @@ Object.assign(ENTRADAS, {
   // El <input type="color"> entrega el valor en .value, no en un data-attr.
   brandAccentLibre:  el => setBrandAccent(el.value),
   studioAccentLibre: el => setStudioAccent(el.value),
+  studioTextColorLibre: el => setStudioTextColor(el.value),
   setStudioField:    el => setStudioField(el.dataset.field, el.value, Number(el.dataset.max)),
   setStudioName:     el => setStudioName(el.value),
   setStudioZoom:     el => setStudioZoom(el.value)

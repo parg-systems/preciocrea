@@ -549,3 +549,270 @@ describe('studioFontStr — la tipografía de cada slot', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// La zona segura de las historias. Instagram tapa la parte de abajo de la story
+// con su cuadro "Enviar mensaje", y en teléfonos más largos que 9:16 recorta la
+// imagen por los dos extremos. Nada de esto se ve en el preview de la app: la
+// creadora descarga una pieza que se ve perfecta y descubre en Instagram que su
+// logo quedó debajo de la interfaz. Es un fallo que solo se detecta publicando,
+// así que se prueba aquí.
+
+const SAFE_BOTTOM = app.get('STUDIO_SAFE_BOTTOM');
+const HISTORIAS = PLANTILLAS.filter(t => t.format === 'historia');
+const PIE = ['logo', 'brand', 'handle', 'credit'];
+
+describe('zona segura — el pie no queda bajo la interfaz de Instagram', () => {
+  test('el margen declarado es el que recomienda Instagram', () => {
+    // 250 px de 1920 = 0.13; el borde inferior seguro es su complemento.
+    assert.equal(SAFE_BOTTOM, 0.87);
+  });
+
+  test('hay historias que revisar', () => {
+    assert.ok(HISTORIAS.length >= 4, `solo ${HISTORIAS.length} estilos de historia`);
+  });
+
+  test('todo el pie de cada historia termina dentro de la zona segura', () => {
+    for (const t of HISTORIAS) {
+      for (const slot of t.slots) {
+        if (!PIE.includes(slot.role)) continue;
+        const fin = slot.y + slot.h;
+        assert.ok(fin <= SAFE_BOTTOM,
+          `${t.id}/${slot.role} termina en ${fin.toFixed(4)}, pasado ${SAFE_BOTTOM}`);
+      }
+    }
+  });
+
+  test('el catálogo no arrastra la restricción: es un post de feed', () => {
+    // Si alguien "arregla" también el catálogo, la portada pierde su equilibrio
+    // sin ganar nada: en el feed no hay interfaz encima de la imagen.
+    const catalogo = PLANTILLAS.filter(t => t.format === 'catalogo');
+    assert.ok(catalogo.some(t => t.slots.some(s => PIE.includes(s.role) && s.y + s.h > SAFE_BOTTOM)));
+  });
+
+  test('ningún bloque de texto se monta sobre otro', () => {
+    // Al mover el pie hacia arriba se aprieta todo lo de en medio. Dos cajas
+    // superpuestas no dan error: dan dos textos impresos uno encima del otro.
+    for (const t of PLANTILLAS) {
+      const textos = t.slots.filter(s => s.kind === 'text').sort((a, b) => a.y - b.y);
+      for (let i = 1; i < textos.length; i++) {
+        const previo = textos[i - 1], actual = textos[i];
+        assert.ok(actual.y >= previo.y + previo.h,
+          `${t.id}: ${actual.role} (y ${actual.y}) se monta sobre ${previo.role} ` +
+          `(termina en ${(previo.y + previo.h).toFixed(4)})`);
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tamaño y color de letra elegidos por la creadora. Se aplican transformando la
+// plantilla, no el motor de render, así que el preview, las miniaturas y el
+// archivo exportado no pueden separarse: los tres piden la plantilla por la
+// misma puerta.
+
+const estilarPlantilla = app.get('studioStyleTemplate');
+const ESCALAS = plano(app.get('STUDIO_TEXT_SCALES'));
+const colorLegible = app.get('studioReadableText');
+const contraste = app.get('studioContrast');
+const fondoDeSlot = app.get('studioSlotBg');
+const TINTA = app.get('STUDIO_INK');
+
+const slotsDe = (tpl, role) => tpl.slots.filter(s => s.role === role);
+const soloTexto = tpl => tpl.slots.filter(s => s.kind === 'text');
+
+describe('studioStyleTemplate — el tamaño de letra que elige la creadora', () => {
+  const base = plantilla('historia-tarjeta');
+
+  test('sin ajustes devuelve la misma plantilla, sin clonar', () => {
+    // Esto corre en cada frame del preview: clonar por gusto es trabajo tirado.
+    assert.equal(estilarPlantilla(base, { textSize: { name: 'medio', desc: 'medio' } }), base);
+    assert.equal(estilarPlantilla(base, {}), base);
+    assert.equal(estilarPlantilla(base, null), base);
+  });
+
+  test('"grande" agranda el nombre y "chico" lo achica', () => {
+    const original = slotsDe(base, 'name')[0];
+    for (const size of ['chico', 'grande']) {
+      const tpl = estilarPlantilla(base, { textSize: { name: size, desc: 'medio' } });
+      const slot = slotsDe(tpl, 'name')[0];
+      assert.equal(slot.size, original.size * ESCALAS[size], size);
+      assert.equal(slot.minSize, original.minSize * ESCALAS[size], size);
+    }
+  });
+
+  test('cada control manda solo sobre lo suyo', () => {
+    const tpl = estilarPlantilla(base, { textSize: { name: 'grande', desc: 'medio' } });
+    assert.equal(slotsDe(tpl, 'desc')[0].size, slotsDe(base, 'desc')[0].size);
+    assert.equal(slotsDe(tpl, 'price')[0].size, slotsDe(base, 'price')[0].size);
+    assert.equal(slotsDe(tpl, 'brand')[0].size, slotsDe(base, 'brand')[0].size);
+  });
+
+  test('el título y la bajada de una portada siguen los mismos dos controles', () => {
+    const portada = plantilla('catalogo-suave-portada');
+    const tpl = estilarPlantilla(portada, { textSize: { name: 'grande', desc: 'chico' } });
+    assert.equal(slotsDe(tpl, 'headline')[0].size,
+                 slotsDe(portada, 'headline')[0].size * ESCALAS.grande);
+    assert.equal(slotsDe(tpl, 'subhead')[0].size,
+                 slotsDe(portada, 'subhead')[0].size * ESCALAS.chico);
+  });
+
+  test('la plantilla original nunca se muta', () => {
+    // Son datos compartidos por todas las publicaciones de la sesión: mutarlas
+    // dejaría la letra grande pegada para siempre.
+    const antes = plano(base);
+    estilarPlantilla(base, { textSize: { name: 'grande', desc: 'grande' }, textColor: '#FF0000' });
+    assert.deepEqual(plano(plantilla('historia-tarjeta')), antes);
+  });
+
+  test('un tamaño inventado no rompe: se queda en el normal', () => {
+    const tpl = estilarPlantilla(base, { textSize: { name: 'gigante', desc: 'medio' } });
+    assert.equal(slotsDe(tpl, 'name')[0].size, slotsDe(base, 'name')[0].size);
+  });
+});
+
+describe('studioReadableText — el color de letra elegido, pero legible', () => {
+  test('un color que ya contrasta se respeta tal cual', () => {
+    assert.equal(colorLegible('#1E1E2E', '#FFFFFF'), '#1E1E2E');
+  });
+
+  test('un amarillo sobre blanco se oscurece hasta que se lee', () => {
+    const out = colorLegible('#FFFF00', '#FFFFFF');
+    assert.notEqual(out, '#FFFF00');
+    assert.ok(contraste(out, '#FFFFFF') >= 4.5, `${out} da ${contraste(out, '#FFFFFF').toFixed(2)}:1`);
+  });
+
+  test('un azul oscuro sobre fondo oscuro se aclara, no se oscurece más', () => {
+    const out = colorLegible('#101040', '#1E1E2E');
+    assert.ok(contraste(out, '#1E1E2E') >= 4.5, `${out} da ${contraste(out, '#1E1E2E').toFixed(2)}:1`);
+  });
+
+  test('conserva el matiz elegido siempre que pueda', () => {
+    // El color es de la creadora: se ajusta la luminosidad, no se cambia por otro.
+    const out = colorLegible('#FFFF00', '#FFFFFF');
+    const [, r, g, b] = out.match(/^#(..)(..)(..)$/).map(v => parseInt(v, 16));
+    assert.ok(r > b && g > b, `${out} ya no es amarillo`);
+  });
+
+  test('un valor que no es un color cae en el automático del fondo', () => {
+    for (const malo of ['', null, undefined, 'rojo', '#GGG']) {
+      const out = colorLegible(malo, '#FFFFFF');
+      assert.ok(contraste(out, '#FFFFFF') >= 4.5, `${JSON.stringify(malo)} → ${out}`);
+    }
+  });
+});
+
+describe('studioStyleTemplate — el color de letra sobre las plantillas reales', () => {
+  const pal = paleta('#FF6B6B');
+  // Dos colores elegidos para pelearse con los fondos: el amarillo desaparece
+  // sobre la tarjeta blanca y el casi negro sobre el color pleno oscuro.
+  const HOSTILES = ['#FFFF00', '#111111'];
+
+  test('cada slot de texto declara un fondo conocido', () => {
+    for (const t of PLANTILLAS) {
+      for (const slot of soloTexto(t)) {
+        const fondo = fondoDeSlot(slot, pal);
+        assert.match(fondo, /^#[0-9A-F]{6}$/i, `${t.id}/${slot.role} → ${fondo}`);
+      }
+    }
+  });
+
+  test('ningún texto queda ilegible, elija el color que elija', () => {
+    for (const t of PLANTILLAS) {
+      const original = plantilla(t.id);
+      for (const hostil of HOSTILES) {
+        const tpl = estilarPlantilla(original, { accent: '#FF6B6B', textColor: hostil });
+        tpl.slots.forEach((slot, i) => {
+          if (slot.kind !== 'text' || slot.role === 'emoji') return;
+          const fondo = fondoDeSlot(original.slots[i], pal);
+          const c = contraste(slot.color, fondo);
+          assert.ok(c >= 4.5,
+            `${t.id}/${slot.role} con ${hostil}: ${slot.color} sobre ${fondo} da ${c.toFixed(2)}:1`);
+        });
+      }
+    }
+  });
+
+  test('el emoji se queda fuera: lo dibuja la fuente de color del sistema', () => {
+    const base = plantilla('historia-tarjeta');
+    const tpl = estilarPlantilla(base, { accent: '#FF6B6B', textColor: '#FFFF00' });
+    assert.equal(slotsDe(tpl, 'emoji')[0].color, slotsDe(base, 'emoji')[0].color);
+  });
+
+  test('las formas y el logo no se tiñen', () => {
+    const base = plantilla('historia-tarjeta');
+    const tpl = estilarPlantilla(base, { accent: '#FF6B6B', textColor: '#FFFF00' });
+    tpl.slots.forEach((slot, i) => {
+      if (slot.kind === 'text') return;
+      assert.equal(slot, base.slots[i], `${slot.kind}/${slot.role} se clonó sin motivo`);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// La publicación libre: un anuncio que no cuelga de ningún producto calculado.
+
+const laminaLibre = app.get('studioFreeSlide');
+const nuevaPieza = app.get('studioNewPiece');
+const modoPrecio = app.get('setStudioPriceMode');
+
+describe('studioFreeSlide — publicar sin producto', () => {
+  test('tiene la forma que consumen las plantillas', () => {
+    const l = plano(laminaLibre());
+    assert.equal(l.kind, 'libre');
+    assert.equal(l.name, '');
+    assert.equal(l.desc, '');
+    assert.equal(l.highlight, '');
+    assert.equal(l.emoji, '');
+    assert.equal(l.photo, null);
+    assert.deepEqual(l.frame, { zoom: 1, ox: 0, oy: 0 });
+  });
+
+  test('no cuelga de ningún producto', () => {
+    // Si trajera un productId inventado, la miniatura del Estudio se le pegaría
+    // encima a la foto de un producto real.
+    assert.equal(plano(laminaLibre()).productId, undefined);
+  });
+
+  test('el destacado ocupa el lugar del precio', () => {
+    const l = laminaLibre();
+    l.highlight = 'Hasta el viernes';
+    assert.equal(textoDeSlot('price', l), 'Hasta el viernes');
+  });
+
+  test('sin destacado, el hueco queda vacío para que el título lo absorba', () => {
+    assert.equal(textoDeSlot('price', laminaLibre()), '');
+  });
+
+  test('una lámina de producto sigue publicando su precio', () => {
+    assert.equal(textoDeSlot('price', { kind: 'product', priceText: '$50.269' }), '$50.269');
+  });
+
+  test('el archivo descargado tiene nombre aunque el título esté vacío', () => {
+    // studioSlug es quien pone el respaldo: sin él, el archivo se llamaría ".jpg".
+    assert.equal(slug(''), 'publicacion');
+    assert.equal(slug('   '), 'publicacion');
+  });
+});
+
+describe('setStudioPriceMode — no pisa lo que la creadora escribió', () => {
+  test('cambiar el modo de precio deja intacto el destacado de una libre', () => {
+    conMarca({ name: 'Vivi', accent: '#FF6B6B' });
+    const libre = laminaLibre();
+    libre.highlight = 'Pedidos abiertos';
+    STUDIO.piece = nuevaPieza('historia', [libre]);
+
+    for (const modo of ['oculto', 'consulta', 'iva']) {
+      modoPrecio(modo);
+      assert.equal(STUDIO.piece.slides[0].highlight, 'Pedidos abiertos', modo);
+    }
+    STUDIO.piece = null;
+  });
+
+  test('la pieza nace con la tipografía en automático', () => {
+    conMarca({ name: 'Vivi', accent: '#FF6B6B' });
+    const pieza = plano(nuevaPieza('historia', [laminaLibre()]));
+    assert.equal(pieza.textColor, null);
+    assert.deepEqual(pieza.textSize, { name: 'medio', desc: 'medio' });
+  });
+});

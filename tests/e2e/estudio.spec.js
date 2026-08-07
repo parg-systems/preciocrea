@@ -226,3 +226,151 @@ test('el render no deja errores en la consola', async ({ page }) => {
 
   expect(errores).toEqual([]);
 });
+
+// ---------------------------------------------------------------------------
+// Publicación libre: un anuncio que no cuelga de ningún producto. El camino
+// entero por la interfaz, porque lo que se prueba es justamente que no exija
+// nada guardado en la calculadora.
+
+async function abrirLibre(page) {
+  // Sin un solo producto: es la situación que el resto del Estudio no permite.
+  await page.evaluate(() => { S.products = []; localStorage.removeItem('pc_v1'); });
+  await page.locator('.tabbar [data-view="view-studio-hub"]').click();
+  await page.locator('[data-action="openStudioLibre"]').click();
+  await expect(page.locator('#view-studio-edit')).toBeVisible();
+  await page.waitForFunction(() => typeof STUDIO !== 'undefined' && !!STUDIO.piece);
+}
+
+test('la publicación libre se abre sin ningún producto guardado', async ({ page }) => {
+  await abrirLibre(page);
+
+  const pieza = await page.evaluate(() => ({
+    formato: STUDIO.piece.format,
+    laminas: STUDIO.piece.slides.length,
+    kind: STUDIO.piece.slides[0].kind,
+    producto: STUDIO.piece.slides[0].productId
+  }));
+
+  expect(pieza.formato).toBe('historia');
+  expect(pieza.laminas).toBe(1);
+  expect(pieza.kind).toBe('libre');
+  expect(pieza.producto).toBeUndefined();
+});
+
+test('la publicación libre exporta un JPEG válido de 1080×1920', async ({ page }) => {
+  await abrirLibre(page);
+
+  await page.locator('#studio-name').fill('Pedidos abiertos');
+  await page.locator('#studio-desc').fill('Esta semana despacho a todo Chile');
+  await page.locator('#studio-highlight').fill('Hasta el viernes');
+
+  const imagen = await page.evaluate(async () => {
+    const canvas = studioRenderToCanvas(0);
+    const blob = await studioCanvasToBlob(canvas);
+    const bytes = new Uint8Array(await blob.slice(0, 3).arrayBuffer());
+    return { ancho: canvas.width, alto: canvas.height, tamano: blob.size, firma: [...bytes] };
+  });
+
+  expect(imagen.ancho).toBe(1080);
+  expect(imagen.alto).toBe(1920);
+  expect(imagen.firma).toEqual([0xFF, 0xD8, 0xFF]);
+  expect(imagen.tamano).toBeGreaterThan(20 * 1024);
+});
+
+test('el texto destacado de una libre ocupa el lugar del precio', async ({ page }) => {
+  await abrirLibre(page);
+  await page.locator('#studio-highlight').fill('Hasta el viernes');
+
+  // Y los chips de precio no aparecen: no hay precio que publicar.
+  await expect(page.locator('.studio-price-chip')).toHaveCount(0);
+  expect(await page.evaluate(() => studioSlotText('price', STUDIO.piece.slides[0])))
+    .toBe('Hasta el viernes');
+});
+
+test('la publicación libre se descarga con un nombre reconocible', async ({ page }) => {
+  await abrirLibre(page);
+  await page.locator('#studio-name').fill('Pedidos abiertos');
+
+  const descarga = await Promise.all([
+    page.waitForEvent('download'),
+    page.evaluate(() => studioDownloadActive())
+  ]).then(([d]) => d);
+
+  expect(descarga.suggestedFilename()).toContain('pedidos-abiertos');
+});
+
+// ---------------------------------------------------------------------------
+// Tamaño y color de la letra.
+
+test('el tamaño de letra elegido llega al archivo exportado', async ({ page }) => {
+  await abrirEstudio(page);
+
+  await page.locator('.studio-size-chip[data-slot="name"][data-size="grande"]').click();
+  await page.locator('.studio-size-chip[data-slot="desc"][data-size="chico"]').click();
+
+  const estado = await page.evaluate(() => {
+    const tpl = studioSlideTemplate(STUDIO.piece, STUDIO.piece.slides[0]);
+    const base = studioTemplate(STUDIO.piece.templateId);
+    const de = (t, role) => t.slots.find(s => s.role === role).size;
+    return {
+      elegido: STUDIO.piece.textSize,
+      nombre: de(tpl, 'name') / de(base, 'name'),
+      desc:   de(tpl, 'desc') / de(base, 'desc')
+    };
+  });
+
+  expect(estado.elegido).toEqual({ name: 'grande', desc: 'chico' });
+  expect(estado.nombre).toBeGreaterThan(1);
+  expect(estado.desc).toBeLessThan(1);
+});
+
+test('el color de letra elegido se aplica y nunca queda ilegible', async ({ page }) => {
+  await abrirEstudio(page);
+
+  // Un amarillo puro: sobre la tarjeta blanca de la plantilla es invisible.
+  await page.evaluate(() => setStudioTextColor('#FFFF00'));
+
+  const analisis = await page.evaluate(() => {
+    const base = studioTemplate(STUDIO.piece.templateId);
+    const tpl  = studioSlideTemplate(STUDIO.piece, STUDIO.piece.slides[0]);
+    const pal  = studioPalette(studioAccent());
+    return tpl.slots.map((s, i) => {
+      if (s.kind !== 'text' || s.role === 'emoji') return null;
+      return { role: s.role, color: s.color, contraste: studioContrast(s.color, studioSlotBg(base.slots[i], pal)) };
+    }).filter(Boolean);
+  });
+
+  expect(analisis.length).toBeGreaterThan(3);
+  for (const s of analisis) {
+    expect(s.color, s.role).toMatch(/^#[0-9A-F]{6}$/i);
+    expect(s.contraste, `${s.role} → ${s.color}`).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+test('volver al automático deja la publicación como estaba', async ({ page }) => {
+  await abrirEstudio(page);
+  const antes = await page.evaluate(() =>
+    studioSlideTemplate(STUDIO.piece, STUDIO.piece.slides[0]).slots.map(s => s.color));
+
+  await page.evaluate(() => setStudioTextColor('#FFFF00'));
+  await page.locator('.studio-auto-chip').click();
+
+  const despues = await page.evaluate(() =>
+    studioSlideTemplate(STUDIO.piece, STUDIO.piece.slides[0]).slots.map(s => s.color));
+
+  expect(await page.evaluate(() => STUDIO.piece.textColor)).toBeNull();
+  expect(despues).toEqual(antes);
+});
+
+test('los controles de tipografía no dejan errores en la consola', async ({ page }) => {
+  const errores = [];
+  page.on('console', m => { if (m.type() === 'error') errores.push(m.text()); });
+  page.on('pageerror', e => errores.push(String(e)));
+
+  await abrirEstudio(page);
+  await page.locator('.studio-size-chip[data-slot="name"][data-size="grande"]').click();
+  await page.locator('.studio-text-swatches .brand-swatch').first().click();
+  await page.evaluate(async () => { await studioCanvasToBlob(studioRenderToCanvas(0)); });
+
+  expect(errores).toEqual([]);
+});

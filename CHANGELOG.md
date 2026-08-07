@@ -8,6 +8,64 @@ Historial de cambios de PrecioCrea. El formato sigue [Keep a Changelog](https://
 
 ---
 
+## [2.4.0] — 2026-08-06 · el Estudio, a gusto de cada quien
+
+### Corregido
+
+- **El logo y el nombre de marca quedaban debajo de la interfaz de Instagram.**
+  En las cuatro historias el pie llegaba hasta el 99% del alto, y el cuadro
+  "Enviar mensaje" que Instagram superpone sobre la story arranca cerca del 89%.
+  El resultado era una publicación que en la app se veía perfecta y en Instagram
+  salía con la marca tapada. Ahora los cuatro estilos respetan la **zona segura**
+  que recomienda Instagram —250 px libres arriba y abajo—: todo el pie termina
+  en el 87% del alto. Para ganar ese espacio la foto se subió y se achicó un
+  poco en cada estilo; el equilibrio de la composición se rehízo entero, no se
+  empujó el pie hacia arriba a la fuerza. Un test lo verifica, porque es un
+  fallo que solo se ve publicando de verdad.
+
+### Añadido
+
+- **Publicación libre, sin producto asociado.** Hasta ahora el Estudio exigía un
+  producto calculado; para un aviso —"pedidos abiertos", "esta semana no hay
+  despachos", "nuevos horarios"— no había forma de usarlo. El botón nuevo del
+  hub abre el editor directo, sin selector, y solo pide tener la marca
+  configurada. Tiene título, descripción y un **texto destacado** que ocupa el
+  lugar del precio; si se deja vacío, el título se queda con ese espacio, igual
+  que ya pasaba al publicar sin precio.
+
+- **Tamaño de la letra a elección**, en tres pasos (Pequeño / Mediano / Grande),
+  por separado para el nombre y para la descripción. Son multiplicadores del
+  tamaño de cada plantilla, no medidas absolutas, así que el mismo ajuste sirve
+  para los cuatro estilos. El motor sigue reduciendo lo que no quepa en su caja:
+  el control fija el techo, no el resultado, y por eso "Grande" se luce en
+  textos cortos y se autolimita en los largos.
+
+- **Color de la letra a elección**, con tres atajos (blanco, tinta y el color de
+  tu marca) y un color libre. Si el color elegido no contrastara lo suficiente
+  con el fondo de esa zona de la plantilla, se aclara u oscurece **lo justo,
+  conservando el tono**, hasta llegar al mínimo de 4,5:1 de la WCAG: un amarillo
+  sobre la tarjeta blanca sale mostaza, no gris. Es la misma regla que el resto
+  del Estudio ya aplicaba al acento — el color de la creadora se ajusta, nunca
+  se rechaza. El emoji queda fuera: lo dibuja la fuente de color del sistema y
+  forzarle un color lo dejaría plano en unos aparatos y no en otros.
+
+  Los dos ajustes viven en la publicación que se está editando, como el color de
+  fondo: no se guardan en el perfil de marca, así que una promo puede salir
+  distinta sin reconfigurar nada y devolverlo después.
+
+### Pruebas
+
+- `tests/estudio.test.js` — 30 casos nuevos: la zona segura de los cuatro
+  estilos, que ningún bloque de texto se monte sobre otro (al apretar la
+  composición es el error fácil), los multiplicadores de tamaño, el ajuste de
+  contraste sobre **todos** los slots de **todas** las plantillas con colores
+  hostiles, y la lámina libre con su destacado.
+- `tests/e2e/estudio.spec.js` — 8 casos nuevos en navegador real: la publicación
+  libre desde el hub sin un solo producto guardado hasta el JPEG descargado, y
+  los controles de tipografía llegando al archivo exportado.
+
+---
+
 ## [2.3.2] — 2026-08-04 · revisión de seguridad: dos rendijas cerradas
 
 ### Seguridad

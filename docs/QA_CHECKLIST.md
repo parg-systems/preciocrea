@@ -234,6 +234,34 @@ cero unidades).
 - [ ] Tras descargar, salir ya no pregunta.
 - [ ] **"Publícalo hoy mismo"** al final de los resultados: guarda el producto (aparece en Productos) **y** abre el editor con ese producto, en un solo paso. Con el almacenamiento lleno, avisa y **no** abre el editor.
 
+### Zona segura de Instagram (2.4.0)
+
+> El pie con el logo, el nombre de marca y el @ quedaba debajo del cuadro "Enviar mensaje" que Instagram superpone en las stories. Nada de esto se ve en la app: **hay que subir la historia de verdad a Instagram y mirarla ahí.**
+
+- [ ] Subir una historia de cada uno de los cuatro estilos **con logo cargado**: el logo, el nombre de marca, el @ y el crédito quedan **por encima** del cuadro de respuesta de Instagram, completos y sin recortar.
+- [ ] Mirar esas mismas historias en un teléfono **más largo que 9:16** (donde Instagram recorta arriba y abajo): el pie sigue entero.
+- [ ] La foto del producto sigue viéndose bien pese a ser algo más baja que antes: no queda aplastada ni deja franjas de fondo.
+
+### Color y tamaño de la letra (2.4.0)
+
+- [ ] Los tres atajos de color de letra (blanco, tinta, color de marca) y **un color libre hostil** (`#FFFF00` amarillo puro, `#111111` casi negro): en los cuatro estilos, **todos** los textos se siguen leyendo. El color se ajusta solo si hace falta y **conserva el tono elegido** (un amarillo se oscurece a mostaza, no se vuelve gris).
+- [ ] "Automático" devuelve la publicación exactamente a como estaba.
+- [ ] Cambiar el color de fondo actualiza el círculo "color de tu marca" del bloque de letra.
+- [ ] El emoji del círculo **no** cambia de color: sigue a todo color.
+- [ ] Tamaño del nombre y de la descripción en Pequeño / Mediano / Grande: el cambio se ve en la vista previa, en las miniaturas de estilo **y en la imagen descargada**.
+- [ ] Con un nombre largo, "Grande" no desborda la tarjeta: el motor lo reduce hasta que cabe (comportamiento correcto, no un fallo).
+- [ ] En un catálogo, los dos controles dicen "título" y "bajada" al estar en la portada, y "nombre" y "descripción" en las láminas.
+
+### Publicación libre, sin producto (2.4.0)
+
+- [ ] **Sin ningún producto guardado** (app recién instalada, solo la marca configurada): "✏️ Publicación libre" abre el editor directo, sin pasar por el selector ni desviar al inicio.
+- [ ] **Sin la marca configurada**: desvía a "Tu marca" con el aviso, y al guardar retoma la publicación libre.
+- [ ] Título, descripción y texto destacado se escriben y se ven en la vista previa. **No** aparecen los chips de precio.
+- [ ] Dejar el texto destacado vacío: el título se recentra ocupando ese espacio, sin hueco muerto.
+- [ ] Los cuatro estilos y la foto funcionan igual que en una historia de producto.
+- [ ] Descargar: el archivo se llama con la marca y el título (con el título vacío, `...-publicacion.jpg`).
+- [ ] La publicación libre **no** crea ninguna miniatura ni toca los productos guardados.
+
 ## Publicaciones — catálogo
 
 - [ ] "Seleccionar varias" marca hasta 9. Al intentar la décima: toast de máximo.
@@ -268,8 +296,8 @@ cero unidades).
 
 - [ ] Pie de la pestaña Calcular: "Creada con amor por **viviLoaiza.cl**…", **"Queda prohibida su venta o distribución comercial."**, el distintivo **© viviLoaiza.cl** y el aviso de marcas registradas (Spotify, WhatsApp, Android, Apple). Los cuatro deben estar.
 - [ ] Vista de Ayuda: al final aparece el bloque "Sobre la creadora" con los dos enlaces (sitio + Instagram), ambos abren en pestaña nueva.
-- [ ] Justo debajo, la línea de versión dice **«Versión 2.3.2 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**. — ✅ *la coincidencia la verifica `tests/repo.test.js`; a ojo solo queda comprobar que la línea se ve*
-- [ ] Pie de la pestaña Calcular: bajo el aviso de marcas aparece el tag **v2.3.2**, discreto, y el número coincide con la línea de versión de Ayuda.
+- [ ] Justo debajo, la línea de versión dice **«Versión 2.4.0 · creada para viviloaiza.cl por parg»**, y el número **coincide con `VERSION` de `sw.js`**. — ✅ *la coincidencia la verifica `tests/repo.test.js`; a ojo solo queda comprobar que la línea se ve*
+- [ ] Pie de la pestaña Calcular: bajo el aviso de marcas aparece el tag **v2.4.0**, discreto, y el número coincide con la línea de versión de Ayuda.
 - [ ] IVA siempre activado: en la lista de productos, detalle, resultados y WhatsApp se ve el precio con IVA sin opción de ocultarlo.
 
 ## PWA

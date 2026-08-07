@@ -1,6 +1,6 @@
 {
   "name": "preciocrea",
-  "version": "2.3.2",
+  "version": "2.4.0",
   "private": true,
   "description": "Calculadora de precios para emprendedoras creativas (PWA). Este package.json existe SOLO para los tests.",
   "scripts": {
